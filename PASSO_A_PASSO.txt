@@ -1,0 +1,186 @@
+🚀 GUIA PASSO A PASSO - LINK FIXO (SUPER SIMPLES)
+================================================
+
+⏱️ Vai levar 10 MINUTOS no máximo!
+
+═══════════════════════════════════════════════════════════════
+
+PASSO 1️⃣: CRIAR CONTA CLOUDFLARE
+═══════════════════════════════════════════════════════════════
+
+1. Abra: https://dash.cloudflare.com/sign-up
+2. Clique em "Sign up"
+3. Preencha:
+   - Email: seu@email.com
+   - Password: senha forte
+4. Clique em "Create account"
+5. Confirme o email (clique no link)
+
+✅ PRONTO! Você tem conta Cloudflare
+
+═══════════════════════════════════════════════════════════════
+
+PASSO 2️⃣: BAIXAR CLOUDFLARED
+═══════════════════════════════════════════════════════════════
+
+1. Abra: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
+
+2. Procure por "Windows" e baixe a versão 64-bit
+   (ou clique direto aqui: https://github.com/cloudflare/cloudflared/releases/download/2024.2.1/cloudflared-windows-amd64.exe)
+
+3. Extraia o arquivo em uma pasta (ex: C:\cloudflare)
+
+4. Copie o caminho:
+   C:\cloudflare\cloudflared.exe
+
+✅ PRONTO! Você tem cloudflared
+
+═══════════════════════════════════════════════════════════════
+
+PASSO 3️⃣: ADICIONAR AO PATH (para funcionar em qualquer lugar)
+═══════════════════════════════════════════════════════════════
+
+WINDOWS 10/11:
+
+1. Clique com botão direito em "Este Computador" ou "Meu Computador"
+2. Clique em "Propriedades"
+3. Clique em "Configurações avançadas do sistema"
+4. Clique em "Variáveis de Ambiente"
+5. Clique em "Path" em "Variáveis do sistema"
+6. Clique em "Editar"
+7. Clique em "Novo"
+8. Cole: C:\cloudflare
+9. Clique OK, OK, OK
+
+✅ PRONTO! cloudflared funciona em qualquer lugar
+
+═══════════════════════════════════════════════════════════════
+
+PASSO 4️⃣: FAZER LOGIN
+═══════════════════════════════════════════════════════════════
+
+1. Abra PowerShell como ADMINISTRADOR
+   (Clique direito em PowerShell → Executar como administrador)
+
+2. Digite este comando:
+   cloudflared login
+
+3. Ele vai abrir uma página no navegador automaticamente
+
+4. Clique em "Authorize"
+
+5. Depois clique em um domínio (ou crie um subdomínio grátis)
+
+6. Clique em "Continue"
+
+✅ PRONTO! Você está logado
+
+═══════════════════════════════════════════════════════════════
+
+PASSO 5️⃣: INICIE O APP
+═══════════════════════════════════════════════════════════════
+
+Abra PowerShell NOVO (normal, sem admin)
+
+Digite:
+cd c:\Users\Josinei\Documents\App
+START_EXTERNAL.bat
+
+Espere 10 segundos até aparecer as 2 janelas (Backend e Frontend)
+
+✅ PRONTO! App está rodando
+
+═══════════════════════════════════════════════════════════════
+
+PASSO 6️⃣: ATIVAR O TUNNEL
+═══════════════════════════════════════════════════════════════
+
+Abra PowerShell NOVO (como ADMINISTRADOR)
+
+Digite:
+cloudflared tunnel run --url http://localhost:3000 deliverydocs
+
+Espere aparecer uma mensagem tipo:
+"Your quick tunnel has been created!"
+com um link tipo: https://seu-tunnel.cloudflare.workers.dev
+
+✅ PRONTO! Link está ativo!
+
+═══════════════════════════════════════════════════════════════
+
+PASSO 7️⃣: TESTE O LINK
+═══════════════════════════════════════════════════════════════
+
+Copie o link que apareceu no terminal:
+https://seu-tunnel.cloudflare.workers.dev
+
+Cole em um navegador e teste!
+
+Se funcionar, você pode compartilhar este link com motoristas!
+
+═══════════════════════════════════════════════════════════════
+
+🎉 PRONTO! VOCÊ TEM LINK FIXO!
+
+═══════════════════════════════════════════════════════════════
+
+PRÓXIMAS VEZES (depois que configurar):
+
+Basta fazer 2 coisas:
+
+1. Execute START_EXTERNAL.bat
+2. Execute em PowerShell (como admin):
+   cloudflared tunnel run --url http://localhost:3000 deliverydocs
+
+E o link fica ativo!
+
+═══════════════════════════════════════════════════════════════
+
+❌ SE TIVER ERRO:
+═══════════════════════════════════════════════════════════════
+
+"cloudflared não é reconhecido"
+→ Você não adicionou ao PATH
+→ Refaça PASSO 3️⃣
+
+"Erro ao conectar"
+→ App não está rodando
+→ Execute START_EXTERNAL.bat primeiro
+
+"Tunnel não ativa"
+→ Você não fez login
+→ Execute: cloudflared login
+
+═══════════════════════════════════════════════════════════════
+
+📱 COMPARTILHAR COM MOTORISTAS
+═══════════════════════════════════════════════════════════════
+
+Copie o link e envie via:
+- WhatsApp
+- Email
+- Telegram
+- SMS
+
+Credenciais:
+Email: motorista@example.com
+Senha: senha123
+
+═══════════════════════════════════════════════════════════════
+
+💡 DICA: Use link curto
+═══════════════════════════════════════════════════════════════
+
+Link longo: https://seu-tunnel-super-longo.cloudflare.workers.dev
+
+Use bit.ly:
+1. Acesse bit.ly
+2. Cole o link longo
+3. Copie o link curto
+4. Compartilhe o link curto!
+
+Fica muito mais fácil para motoristas digitar!
+
+═══════════════════════════════════════════════════════════════
+
+Qualquer dúvida, é só chamar! 🎉

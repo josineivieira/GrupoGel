@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Como fazer Link Fixo - Passo a Passo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .timer {
+            text-align: center;
+            color: #999;
+            margin-bottom: 30px;
+            font-size: 18px;
+        }
+        
+        .steps {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .step {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #667eea;
+        }
+        
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        
+        .step-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .step-subtitle {
+            color: #999;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        .instructions {
+            margin-top: 15px;
+            padding-left: 65px;
+        }
+        
+        .instruction-item {
+            background: #f9f9f9;
+            padding: 12px;
+            margin: 10px 0;
+            border-left: 3px solid #667eea;
+            border-radius: 5px;
+        }
+        
+        .instruction-item strong {
+            color: #667eea;
+        }
+        
+        .instruction-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 25px;
+            margin-right: 10px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .code {
+            background: #222;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        
+        .link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .link:hover {
+            text-decoration: underline;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            margin-left: 65px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            margin-left: 65px;
+        }
+        
+        .step.completed {
+            opacity: 0.7;
+            border-left-color: #28a745;
+        }
+        
+        .step.completed .step-number {
+            background: #28a745;
+        }
+        
+        .checkpoint {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 2px dashed #667eea;
+        }
+        
+        .checkpoint h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .final-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 18px;
+            margin-top: 30px;
+        }
+        
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        .button:hover {
+            background: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Como Configurar Link Fixo e Permanente</h1>
+        <p class="timer">⏱️ Leva apenas 10 MINUTOS</p>
+        
+        <div class="steps">
+            <!-- STEP 1 -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">1️⃣</div>
+                    <div>
+                        <div class="step-title">Criar Conta Cloudflare</div>
+                        <div class="step-subtitle">Leva 2 minutos</div>
+                    </div>
+                </div>
+                
+                <div class="instructions">
+                    <div class="instruction-item">
+                        <span class="instruction-number">1</span>
+                        Abra seu navegador e acesse:
+                        <div class="code">https://dash.cloudflare.com/sign-up</div>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">2</span>
+                        Clique em <strong>"Sign up"</strong>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">3</span>
+                        Preencha:
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li><strong>Email:</strong> seu@email.com</li>
+                            <li><strong>Password:</strong> uma senha forte</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">4</span>
+                        Clique em <strong>"Create account"</strong>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">5</span>
+                        Confirme seu email (clique no link que foi enviado)
+                    </div>
+                    
+                    <div class="success-box">
+                        ✅ PRONTO! Você tem conta Cloudflare
+                    </div>
+                </div>
+            </div>
+            
+            <!-- STEP 2 -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">2️⃣</div>
+                    <div>
+                        <div class="step-title">Baixar cloudflared</div>
+                        <div class="step-subtitle">Ferramenta para criar o tunnel</div>
+                    </div>
+                </div>
+                
+                <div class="instructions">
+                    <div class="instruction-item">
+                        <span class="instruction-number">1</span>
+                        Clique aqui para baixar:
+                        <div class="code" style="margin-top: 10px;">
+                            <a href="https://github.com/cloudflare/cloudflared/releases/download/2024.2.1/cloudflared-windows-amd64.exe" class="link">cloudflared-windows-amd64.exe</a>
+                        </div>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">2</span>
+                        Escolha uma pasta para extrair (ex: <strong>C:\cloudflare</strong>)
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">3</span>
+                        Extraia o arquivo lá
+                    </div>
+                    
+                    <div class="success-box">
+                        ✅ PRONTO! Você tem cloudflared
+                    </div>
+                </div>
+            </div>
+            
+            <!-- STEP 3 -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">3️⃣</div>
+                    <div>
+                        <div class="step-title">Adicionar ao PATH</div>
+                        <div class="step-subtitle">Para funcionar em qualquer lugar</div>
+                    </div>
+                </div>
+                
+                <div class="instructions">
+                    <div class="warning-box">
+                        ⚠️ Este passo é importante! Caso contrário o comando não vai funcionar.
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">1</span>
+                        Clique com botão direito em <strong>"Este Computador"</strong> na Área de Trabalho
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">2</span>
+                        Clique em <strong>"Propriedades"</strong>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">3</span>
+                        Clique em <strong>"Configurações avançadas do sistema"</strong>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">4</span>
+                        Clique em <strong>"Variáveis de Ambiente"</strong> (botão em baixo)
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">5</span>
+                        Em <strong>"Variáveis do sistema"</strong>, clique em <strong>"Path"</strong>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">6</span>
+                        Clique em <strong>"Editar"</strong>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">7</span>
+                        Clique em <strong>"Novo"</strong>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">8</span>
+                        Cole este caminho:
+                        <div class="code" style="margin-top: 10px;">C:\cloudflare</div>
+                        <small>(ou o caminho que você usou para extrair)</small>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">9</span>
+                        Clique <strong>OK</strong>, <strong>OK</strong>, <strong>OK</strong>
+                    </div>
+                    
+                    <div class="success-box">
+                        ✅ PRONTO! cloudflared funciona em qualquer lugar
+                    </div>
+                </div>
+            </div>
+            
+            <!-- STEP 4 -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">4️⃣</div>
+                    <div>
+                        <div class="step-title">Fazer Login</div>
+                        <div class="step-subtitle">Conectar com sua conta Cloudflare</div>
+                    </div>
+                </div>
+                
+                <div class="instructions">
+                    <div class="instruction-item">
+                        <span class="instruction-number">1</span>
+                        Abra <strong>PowerShell</strong> como ADMINISTRADOR
+                        <small>(Clique direito em PowerShell → Executar como administrador)</small>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">2</span>
+                        Digite este comando:
+                        <div class="code" style="margin-top: 10px;">cloudflared login</div>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">3</span>
+                        Ele vai abrir uma página no navegador automaticamente
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">4</span>
+                        Clique em <strong>"Authorize"</strong>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">5</span>
+                        Escolha um domínio ou crie um subdomínio (pode usar o free)
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">6</span>
+                        Clique em <strong>"Continue"</strong>
+                    </div>
+                    
+                    <div class="success-box">
+                        ✅ PRONTO! Você está logado
+                    </div>
+                </div>
+            </div>
+            
+            <!-- STEP 5 -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">5️⃣</div>
+                    <div>
+                        <div class="step-title">Iniciar o App</div>
+                        <div class="step-subtitle">Backend + Frontend</div>
+                    </div>
+                </div>
+                
+                <div class="instructions">
+                    <div class="instruction-item">
+                        <span class="instruction-number">1</span>
+                        Na pasta do app, abra <strong>PowerShell NOVO</strong> (normal, sem admin)
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">2</span>
+                        Execute este comando:
+                        <div class="code" style="margin-top: 10px;">START_EXTERNAL.bat</div>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">3</span>
+                        Espere aparecerem 2 janelas do CMD (uma com "Backend", outra com "Frontend")
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">4</span>
+                        Deixe rodando
+                    </div>
+                    
+                    <div class="success-box">
+                        ✅ PRONTO! App está rodando
+                    </div>
+                </div>
+            </div>
+            
+            <!-- STEP 6 -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">6️⃣</div>
+                    <div>
+                        <div class="step-title">Ativar o Tunnel</div>
+                        <div class="step-subtitle">Criar link público</div>
+                    </div>
+                </div>
+                
+                <div class="instructions">
+                    <div class="instruction-item">
+                        <span class="instruction-number">1</span>
+                        Abra <strong>PowerShell NOVO</strong> como ADMINISTRADOR
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">2</span>
+                        Digite este comando:
+                        <div class="code" style="margin-top: 10px;">cloudflared tunnel run --url http://localhost:3000 deliverydocs</div>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">3</span>
+                        Espere aparecer uma mensagem com seu link (tipo):
+                        <div class="code" style="margin-top: 10px;">https://seu-tunnel.cloudflare.workers.dev</div>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">4</span>
+                        <strong>COPIE E SALVE ESTE LINK!</strong> Você vai compartilhar com motoristas
+                    </div>
+                    
+                    <div class="success-box">
+                        ✅ PRONTO! Link está ativo e permanente!
+                    </div>
+                </div>
+            </div>
+            
+            <!-- STEP 7 -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">7️⃣</div>
+                    <div>
+                        <div class="step-title">Testar e Compartilhar</div>
+                        <div class="step-subtitle">Verificar se funciona</div>
+                    </div>
+                </div>
+                
+                <div class="instructions">
+                    <div class="instruction-item">
+                        <span class="instruction-number">1</span>
+                        Abra um navegador e cole o link:
+                        <div class="code" style="margin-top: 10px;">https://seu-tunnel.cloudflare.workers.dev</div>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">2</span>
+                        Verifique se o app abriu normalmente
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">3</span>
+                        Tente fazer login com:
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li>Email: <strong>motorista@example.com</strong></li>
+                            <li>Senha: <strong>senha123</strong></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="instruction-item">
+                        <span class="instruction-number">4</span>
+                        Se funcionar, compartilhe o link com seus motoristas via:
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li>WhatsApp</li>
+                            <li>Email</li>
+                            <li>Telegram</li>
+                            <li>SMS</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="success-box">
+                        ✅ PRONTO! Motoristas podem acessar!
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="final-message">
+            🎉 PARABÉNS! <br>
+            Você tem um LINK FIXO e PERMANENTE para seus motoristas!
+        </div>
+        
+        <div class="checkpoint" style="margin-top: 20px;">
+            <h3>📋 Próximas Vezes (depois de configurado)</h3>
+            <p style="margin-bottom: 15px;">Você só precisa fazer 2 coisas:</p>
+            <ol style="text-align: left; display: inline-block;">
+                <li>Execute: <code>START_EXTERNAL.bat</code> (inicia o app)</li>
+                <li>Execute em PowerShell: <code>cloudflared tunnel run --url http://localhost:3000 deliverydocs</code> (ativa o link)</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>

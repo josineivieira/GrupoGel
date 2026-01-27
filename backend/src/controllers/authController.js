@@ -1,8 +1,13 @@
-const Driver = require('../models/Driver');
+const mockdb = require('../mockdb');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+const generateToken = (userId, role) => {
+  return jwt.sign({ id: userId, role }, process.env.JWT_SECRET || 'seu_jwt_secret_super_seguro_aqui_mude_em_producao', { expiresIn: '7d' });
+};
+
+const hashPassword = (pwd) => {
+  return crypto.createHash('sha256').update(pwd).digest('hex');
 };
 
 // Register a new driver
@@ -11,32 +16,42 @@ exports.register = async (req, res) => {
     const { name, username, email, password, phone } = req.body;
 
     // Check if driver already exists
-    let driver = await Driver.findOne({ $or: [{ email }, { username }] });
-    if (driver) {
+    const existingDriver = mockdb.findOne('drivers', { 
+      $or: [{ email }, { username }] 
+    });
+
+    if (existingDriver) {
       return res.status(400).json({ success: false, message: 'Motorista já cadastrado' });
     }
 
     // Create new driver
-    driver = new Driver({
+    const driver = mockdb.create('drivers', {
+      username: username.toLowerCase(),
+      email: email.toLowerCase(),
+      password: hashPassword(password),
       name,
-      username,
-      email,
-      password,
+      fullName: name,
       phone,
-      role: 'driver'
+      role: 'driver',
+      isActive: true
     });
 
-    await driver.save();
-
-    const token = generateToken(driver._id);
+    const token = generateToken(driver._id, driver.role);
 
     res.status(201).json({
       success: true,
       message: 'Motorista cadastrado com sucesso',
       token,
-      driver: driver.toJSON()
+      driver: {
+        id: driver._id,
+        username: driver.username,
+        email: driver.email,
+        fullName: driver.fullName,
+        role: driver.role
+      }
     });
   } catch (error) {
+    console.error('Erro register:', error);
     res.status(500).json({ success: false, message: 'Erro no servidor', error: error.message });
   }
 };
@@ -52,17 +67,15 @@ exports.login = async (req, res) => {
     }
 
     // Check for driver
-    const driver = await Driver.findOne({ 
-      $or: [{ username: username.toLowerCase() }, { email: username.toLowerCase() }]
-    });
+    const driver = mockdb.findOne('drivers', { username: username.toLowerCase() });
 
     if (!driver) {
       return res.status(401).json({ success: false, message: 'Credenciais inválidas' });
     }
 
     // Check password
-    const isMatch = await driver.comparePassword(password);
-    if (!isMatch) {
+    const hashedPassword = hashPassword(password);
+    if (hashedPassword !== driver.password) {
       return res.status(401).json({ success: false, message: 'Credenciais inválidas' });
     }
 
@@ -71,15 +84,22 @@ exports.login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Motorista desativado' });
     }
 
-    const token = generateToken(driver._id);
+    const token = generateToken(driver._id, driver.role);
 
     res.json({
       success: true,
       message: 'Login realizado com sucesso',
       token,
-      driver: driver.toJSON()
+      driver: {
+        id: driver._id,
+        username: driver.username,
+        email: driver.email,
+        fullName: driver.fullName,
+        role: driver.role
+      }
     });
   } catch (error) {
+    console.error('Erro login:', error);
     res.status(500).json({ success: false, message: 'Erro no servidor', error: error.message });
   }
 };
@@ -87,8 +107,21 @@ exports.login = async (req, res) => {
 // Get current driver
 exports.getMe = async (req, res) => {
   try {
-    const driver = await Driver.findById(req.user.id);
-    res.json({ success: true, driver: driver.toJSON() });
+    const driver = mockdb.findById('drivers', req.user.id);
+    if (!driver) {
+      return res.status(404).json({ success: false, message: 'Motorista não encontrado' });
+    }
+
+    res.json({
+      success: true,
+      driver: {
+        id: driver._id,
+        username: driver.username,
+        email: driver.email,
+        fullName: driver.fullName,
+        role: driver.role
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro no servidor', error: error.message });
   }
@@ -97,38 +130,42 @@ exports.getMe = async (req, res) => {
 // Get all drivers (admin only)
 exports.getAllDrivers = async (req, res) => {
   try {
-    const drivers = await Driver.find({ role: 'driver' });
-    res.json({ success: true, drivers });
+    const drivers = mockdb.find('drivers', { role: 'driver' });
+    res.json({
+      success: true,
+      drivers: drivers.map(d => ({
+        id: d._id,
+        username: d.username,
+        fullName: d.fullName,
+        email: d.email,
+        role: d.role
+      }))
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro no servidor', error: error.message });
   }
 };
 
-// Update driver
+// Update driver profile
 exports.updateDriver = async (req, res) => {
   try {
     const { name, email, phone } = req.body;
+    const driver = mockdb.updateOne('drivers', { _id: req.user.id }, { name, email, phone });
 
-    let driver = await Driver.findById(req.user.id);
-
-    if (email && email !== driver.email) {
-      const existingDriver = await Driver.findOne({ email });
-      if (existingDriver) {
-        return res.status(400).json({ success: false, message: 'Email já cadastrado' });
-      }
+    if (!driver) {
+      return res.status(404).json({ success: false, message: 'Motorista não encontrado' });
     }
 
-    driver.name = name || driver.name;
-    driver.email = email || driver.email;
-    driver.phone = phone || driver.phone;
-    driver.updatedAt = Date.now();
-
-    await driver.save();
-
-    res.json({ 
-      success: true, 
-      message: 'Motorista atualizado com sucesso',
-      driver: driver.toJSON() 
+    res.json({
+      success: true,
+      message: 'Perfil atualizado',
+      driver: {
+        id: driver._id,
+        username: driver.username,
+        email: driver.email,
+        fullName: driver.fullName,
+        role: driver.role
+      }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro no servidor', error: error.message });
@@ -138,25 +175,21 @@ exports.updateDriver = async (req, res) => {
 // Change password
 exports.changePassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { oldPassword, newPassword } = req.body;
 
-    const driver = await Driver.findById(req.user.id);
+    const driver = mockdb.findById('drivers', req.user.id);
+    if (!driver) {
+      return res.status(404).json({ success: false, message: 'Motorista não encontrado' });
+    }
 
-    // Check current password
-    const isMatch = await driver.comparePassword(currentPassword);
-    if (!isMatch) {
+    const hashedOldPassword = hashPassword(oldPassword);
+    if (hashedOldPassword !== driver.password) {
       return res.status(401).json({ success: false, message: 'Senha atual incorreta' });
     }
 
-    // Update password
-    driver.password = newPassword;
-    driver.updatedAt = Date.now();
-    await driver.save();
+    mockdb.updateOne('drivers', { _id: req.user.id }, { password: hashPassword(newPassword) });
 
-    res.json({ 
-      success: true, 
-      message: 'Senha alterada com sucesso'
-    });
+    res.json({ success: true, message: 'Senha alterada com sucesso' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro no servidor', error: error.message });
   }

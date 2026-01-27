@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Fixo - Delivery Docs</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #999;
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            color: #333;
+            margin-top: 20px;
+            margin-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .option {
+            background: #f9f9f9;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .option-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .pros {
+            color: #28a745;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .cons {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        .step-box {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
+        .step-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        .code {
+            background: #222;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        
+        .recommended {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .warning {
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .link-card {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .link-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .link-card p {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .price {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #28a745;
+        }
+        
+        .price.paid {
+            color: #dc3545;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🔗 Link FIXO e PERMANENTE</h1>
+            <p class="subtitle">Para compartilhar com motoristas (que nunca muda)</p>
+            
+            <div class="recommended">
+                <strong>⭐ RECOMENDADO:</strong> Use <strong>Cloudflare Tunnel</strong> - É GRATUITO e o link NUNCA muda!
+            </div>
+            
+            <h2>📊 Comparação de opções</h2>
+            
+            <div class="links-grid">
+                <div class="link-card">
+                    <h3>🟢 Cloudflare Tunnel</h3>
+                    <p class="price">GRATUITO</p>
+                    <p>Link fixo permanente</p>
+                    <p>Rápido e confiável</p>
+                    <p>Sem limite de tempo</p>
+                    <button onclick="window.location.href='#cloudflare'">Usar</button>
+                </div>
+                
+                <div class="link-card">
+                    <h3>🔵 Localtunnel</h3>
+                    <p class="price">GRATUITO</p>
+                    <p>Link muda a cada vez</p>
+                    <p>Rápido de configurar</p>
+                    <p>Bom para testes</p>
+                    <button onclick="window.location.href='#localtunnel'">Usar</button>
+                </div>
+                
+                <div class="link-card">
+                    <h3>🟡 ngrok PRO</h3>
+                    <p class="price paid">$10/mês</p>
+                    <p>Link fixo</p>
+                    <p>Muito rápido</p>
+                    <p>Suporte profissional</p>
+                    <button onclick="window.location.href='https://ngrok.com'">Comprar</button>
+                </div>
+            </div>
+            
+            <h2 id="cloudflare">⭐ OPÇÃO 1: Cloudflare Tunnel (RECOMENDADO)</h2>
+            
+            <div class="option">
+                <div class="option-title">Por quê usar?</div>
+                <div class="pros">
+                    ✅ Link FIXO que nunca muda<br>
+                    ✅ Completamente GRATUITO<br>
+                    ✅ Muito rápido e confiável<br>
+                    ✅ Funciona em qualquer lugar
+                </div>
+            </div>
+            
+            <h3 style="color: #333; margin-top: 20px;">Como configurar:</h3>
+            
+            <div class="step-box">
+                <span class="step-number">1</span>
+                <strong>Crie conta Cloudflare (GRATUITA)</strong>
+                <div class="code">https://dash.cloudflare.com/sign-up</div>
+            </div>
+            
+            <div class="step-box">
+                <span class="step-number">2</span>
+                <strong>Baixe cloudflared</strong>
+                <div class="code">https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/</div>
+                <p>Execute: CLOUDFLARE_SETUP.bat</p>
+            </div>
+            
+            <div class="step-box">
+                <span class="step-number">3</span>
+                <strong>Faça login</strong>
+                <div class="code">cloudflared login</div>
+            </div>
+            
+            <div class="step-box">
+                <span class="step-number">4</span>
+                <strong>Crie um tunnel</strong>
+                <div class="code">cloudflared tunnel create deliverydocs</div>
+            </div>
+            
+            <div class="step-box">
+                <span class="step-number">5</span>
+                <strong>Inicie o app</strong>
+                <div class="code">START_EXTERNAL.bat</div>
+            </div>
+            
+            <div class="step-box">
+                <span class="step-number">6</span>
+                <strong>Ative o tunnel</strong>
+                <div class="code">CLOUDFLARE_RUN.bat</div>
+            </div>
+            
+            <div class="recommended" style="margin-top: 20px;">
+                <strong>🎉 Pronto!</strong> Seu link está ativo e motoristas podem acessar!<br>
+                Link: <code>https://seu-tunnel-url.cloudflare.workers.dev</code>
+            </div>
+            
+            <h2 id="localtunnel">🔵 OPÇÃO 2: Localtunnel (Rápido, link muda)</h2>
+            
+            <div class="option">
+                <div class="option-title">Por quê usar?</div>
+                <div class="pros">
+                    ✅ Muito fácil de configurar<br>
+                    ✅ GRATUITO<br>
+                </div>
+                <div class="cons">
+                    ❌ Link muda a cada vez<br>
+                    ❌ Menos confiável
+                </div>
+            </div>
+            
+            <h3 style="color: #333; margin-top: 20px;">Como usar:</h3>
+            
+            <div class="step-box">
+                <span class="step-number">1</span>
+                <strong>Instale</strong>
+                <div class="code">npm install -g localtunnel</div>
+            </div>
+            
+            <div class="step-box">
+                <span class="step-number">2</span>
+                <strong>Inicie o app</strong>
+                <div class="code">START_EXTERNAL.bat</div>
+            </div>
+            
+            <div class="step-box">
+                <span class="step-number">3</span>
+                <strong>Rode localtunnel</strong>
+                <div class="code">lt --port 3000</div>
+            </div>
+            
+            <div class="warning">
+                ⚠️ O link muda toda vez que você reinicia!<br>
+                Compartilhe o novo link com motoristas cada sessão.
+            </div>
+            
+            <h2>🎯 RESUMO</h2>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <tr style="background: #f0f0f0;">
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Opção</th>
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Link Fixo</th>
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Preço</th>
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Facilidade</th>
+                </tr>
+                <tr style="border: 1px solid #ddd;">
+                    <td style="padding: 10px;"><strong>Cloudflare Tunnel</strong></td>
+                    <td style="padding: 10px; color: #28a745;">✅ SIM</td>
+                    <td style="padding: 10px; color: #28a745;">GRATUITO</td>
+                    <td style="padding: 10px;">⭐⭐⭐⭐</td>
+                </tr>
+                <tr style="border: 1px solid #ddd; background: #f9f9f9;">
+                    <td style="padding: 10px;"><strong>Localtunnel</strong></td>
+                    <td style="padding: 10px; color: #dc3545;">❌ NÃO</td>
+                    <td style="padding: 10px; color: #28a745;">GRATUITO</td>
+                    <td style="padding: 10px;">⭐⭐⭐⭐⭐</td>
+                </tr>
+                <tr style="border: 1px solid #ddd;">
+                    <td style="padding: 10px;"><strong>ngrok PRO</strong></td>
+                    <td style="padding: 10px; color: #28a745;">✅ SIM</td>
+                    <td style="padding: 10px; color: #dc3545;">$10/mês</td>
+                    <td style="padding: 10px;">⭐⭐⭐⭐</td>
+                </tr>
+            </table>
+            
+            <h2 style="margin-top: 30px;">📁 Arquivos úteis</h2>
+            <ul style="margin-left: 20px; line-height: 2;">
+                <li><strong>CLOUDFLARE_SETUP.bat</strong> - Configuração inicial</li>
+                <li><strong>CLOUDFLARE_RUN.bat</strong> - Ativa o tunnel</li>
+                <li><strong>LINK_FIXO_CLOUDFLARE.md</strong> - Documentação detalhada</li>
+                <li><strong>START_EXTERNAL.bat</strong> - Inicia o app</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

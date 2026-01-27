@@ -31,5 +31,10 @@ export const adminService = {
     api.get(`/admin/deliveries/${deliveryId}/documents/${documentType}/download`, { 
       responseType: 'blob' 
     }),
-  getDriverDetails: (driverId) => api.get(`/admin/drivers/${driverId}`)
+  getDriverDetails: (driverId) => api.get(`/admin/drivers/${driverId}`),
+  deleteDelivery: (id) => api.delete(`/admin/deliveries/${id}`),
+  getUsers: () => api.get('/admin/users'),
+  createUser: (data) => api.post('/admin/users', data),
+  updateUser: (id, data) => api.put(`/admin/users/${id}`, data),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`)
 };

@@ -1,0 +1,50 @@
+📦 DELIVERY DOCS - LINK FIXO E PERMANENTE
+=========================================
+
+🎯 SOLUÇÃO: Use Cloudflare Tunnel
+
+✅ VANTAGENS:
+   • Link FIXO que NUNCA muda
+   • Totalmente GRATUITO
+   • Funciona na internet inteira
+   • Rápido e confiável
+
+🚀 4 PASSOS RÁPIDOS:
+
+1. Crie conta Cloudflare (gratuita)
+   → https://dash.cloudflare.com/sign-up
+
+2. Instale cloudflared
+   → https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
+   → Execute: CLOUDFLARE_SETUP.bat
+
+3. Inicie seu app
+   → Execute: START_EXTERNAL.bat
+
+4. Ative o tunnel
+   → Execute: CLOUDFLARE_RUN.bat
+
+🔗 SEU LINK FINAL:
+   https://seu-tunnel.cloudflare.workers.dev
+
+📋 COMPARAÇÃO:
+
+   Opção                  Link Fixo    Preço
+   ─────────────────────────────────────────
+   Cloudflare Tunnel      ✅ SIM       GRATUITO ⭐⭐⭐⭐⭐
+   Localtunnel            ❌ NÃO       GRATUITO ⭐⭐⭐⭐
+   ngrok PRO              ✅ SIM       $10/mês   ⭐⭐⭐
+
+💡 DICA: Depois que configurar uma vez, você só precisa:
+   1. Executar START_EXTERNAL.bat (app)
+   2. Executar CLOUDFLARE_RUN.bat (tunnel)
+
+   E o link fica ativo!
+
+📁 ARQUIVOS CRIADOS:
+   • CLOUDFLARE_SETUP.bat
+   • CLOUDFLARE_RUN.bat
+   • LINK_FIXO.html (abra para ver instruções bonitas)
+   • LINK_FIXO_CLOUDFLARE.md (documentação completa)
+
+Pronto! Link fixo e gratuito para sempre! 🎉

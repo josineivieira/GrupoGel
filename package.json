@@ -1,19 +1,21 @@
 {
   "name": "delivery-docs-app",
   "version": "1.0.0",
-  "description": "Delivery Documentation App for Drivers",
+  "description": "Delivery Documentation App for GeoTransportes",
   "private": true,
+  "engines": {
+    "node": "18.x",
+    "npm": "9.x"
+  },
   "scripts": {
     "setup": "echo 'Instalando dependências...' && cd backend && npm install && cd ../frontend && npm install && echo '✓ Setup completo!'",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm start",
-    "build": "npm run build:backend && npm run build:frontend",
-    "build:backend": "cd backend && npm run build",
+    "build": "npm run build:frontend",
     "build:frontend": "cd frontend && npm run build",
-    "start": "npm run start:backend & npm run start:frontend",
-    "start:backend": "cd backend && npm start",
-    "start:frontend": "cd frontend && npm start"
+    "start": "node backend/src/server.js",
+    "heroku-postbuild": "npm run build"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

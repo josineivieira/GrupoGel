@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../components/Header';
 import Toast from '../components/Toast';
 import { deliveryService } from '../services/authService';
 import { FaArrowLeft, FaEye, FaTrash, FaPlus } from 'react-icons/fa';
@@ -14,6 +13,7 @@ const MinhasEntregas = () => {
 
   useEffect(() => {
     loadDeliveries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const loadDeliveries = async () => {
@@ -40,14 +40,16 @@ const MinhasEntregas = () => {
       setToast({ message: 'Entrega deletada com sucesso', type: 'success' });
       loadDeliveries();
     } catch (error) {
-      setToast({ message: error.response?.data?.message || 'Erro ao deletar', type: 'error' });
+      setToast({
+        message: error.response?.data?.message || 'Erro ao deletar',
+        type: 'error'
+      });
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <Header />
-
+    // ✅ sem min-h-screen e sem Header: AppLayout já cuida disso
+    <div className="bg-gray-100">
       <div className="max-w-6xl mx-auto p-4 pb-20">
         <button
           onClick={() => navigate('/home')}
@@ -94,7 +96,7 @@ const MinhasEntregas = () => {
         {/* Deliveries List */}
         {loading ? (
           <div className="text-center py-10">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto"></div>
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto" />
           </div>
         ) : deliveries.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center">
@@ -116,33 +118,44 @@ const MinhasEntregas = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h3 className="text-lg font-bold text-gray-800 mb-2">
-                      Entrega: {delivery.deliveryNumber}
+                      Container: {delivery.deliveryNumber}
                     </h3>
+
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm text-gray-600">
                       <div>
                         <p className="text-gray-500">Data</p>
                         <p className="font-medium">
-                          {new Date(delivery.deliveryDate).toLocaleDateString('pt-BR')}
+                          {new Date(delivery.createdAt).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
+
                       {delivery.vehiclePlate && (
                         <div>
-                          <p className="text-gray-500">Placa</p>
+                          <p className="text-gray-500">Transportadora</p>
                           <p className="font-medium">{delivery.vehiclePlate}</p>
                         </div>
                       )}
+
                       <div>
                         <p className="text-gray-500">Status</p>
-                        <p className={`font-medium ${
-                          delivery.status === 'submitted' ? 'text-green-600' : 'text-orange-600'
-                        }`}>
+                        <p
+                          className={`font-medium ${
+                            delivery.status === 'submitted'
+                              ? 'text-green-600'
+                              : 'text-orange-600'
+                          }`}
+                        >
                           {delivery.status === 'submitted' ? '✅ Enviada' : '📝 Rascunho'}
                         </p>
                       </div>
+
                       <div>
                         <p className="text-gray-500">Documentos</p>
                         <p className="font-medium">
-                          {delivery.documents ? Object.values(delivery.documents).filter(d => d).length : 0}/5
+                          {delivery.documents
+                            ? Object.values(delivery.documents).filter((d) => d).length
+                            : 0}
+                          /5
                         </p>
                       </div>
                     </div>
@@ -175,11 +188,7 @@ const MinhasEntregas = () => {
       </div>
 
       {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
     </div>
   );

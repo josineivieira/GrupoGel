@@ -23,31 +23,43 @@ const Login = () => {
     try {
       await login(formData.username, formData.password);
       setToast({ message: 'Login realizado com sucesso!', type: 'success' });
-      setTimeout(() => navigate('/home'), 1000);
+      setTimeout(() => navigate('/home'), 900);
     } catch (error) {
-      setToast({ message: error.response?.data?.message || 'Erro ao fazer login', type: 'error' });
+      setToast({
+        message: error.response?.data?.message || 'Erro ao fazer login',
+        type: 'error'
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-purple-600 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 w-full overflow-hidden overscroll-none bg-gradient-to-br from-purple-700 via-blue-600 to-emerald-600 flex items-center justify-center px-4 py-10"
+      style={{
+        height: '100svh',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)'
+      }}
+    >
       {/* Background decoration */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-5 rounded-full -mr-48 -mt-48"></div>
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-white opacity-5 rounded-full -ml-48 -mb-48"></div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -mr-48 -mt-48 blur-2xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/10 rounded-full -ml-48 -mb-48 blur-2xl pointer-events-none" />
 
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 relative z-10">
+      {/* Card (se precisar rolar em telas pequenas, ele rola sem “balançar” a página) */}
+      <div className="w-full max-w-md max-h-[90svh] overflow-auto bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-8 relative z-10 border border-white/40">
         <div className="text-center mb-8">
-          <img 
-            src="/images/geotransportes-logo.svg" 
-            alt="GeoTransportes Logo" 
+          <img
+            src="/images/geotransporteslogo.svg"
+            alt="GeoTransportes Logo"
             className="h-20 w-auto mx-auto mb-4"
           />
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
+          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-purple-700 to-blue-700 bg-clip-text text-transparent mb-2">
             GeoTransportes
           </h1>
-          <p className="text-gray-600 font-semibold">Logística Rodoviária com Excelência</p>
+          <p className="text-gray-700 font-semibold">
+            Logística Rodoviária com Excelência
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -61,10 +73,11 @@ const Login = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200 text-base transition"
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-base transition shadow-sm"
               placeholder="seu.usuario ou email@example.com"
               disabled={loading}
               required
+              autoComplete="username"
             />
           </div>
 
@@ -79,15 +92,17 @@ const Login = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200 text-base transition pr-12"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-base transition pr-12 shadow-sm"
                 placeholder="Digite sua senha"
                 disabled={loading}
                 required
+                autoComplete="current-password"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-gray-800"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-800 p-2 rounded-lg"
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
               >
                 {showPassword ? <FaEyeSlash /> : <FaEye />}
               </button>
@@ -97,17 +112,17 @@ const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold py-3 px-4 rounded-lg transition text-lg shadow-md"
+            className="w-full bg-gradient-to-r from-purple-700 to-emerald-600 hover:from-purple-800 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-extrabold py-3 px-4 rounded-xl transition text-lg shadow-md active:scale-[0.99]"
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
 
-        <div className="mt-6 pt-6 border-t border-gray-200 text-center">
+        <div className="mt-6 pt-6 border-t border-gray-200/70 text-center">
           <p className="text-gray-600 text-sm mb-4">Não tem cadastro?</p>
           <button
             onClick={() => navigate('/register')}
-            className="text-purple-600 hover:text-purple-800 font-semibold text-base transition"
+            className="text-emerald-700 hover:text-emerald-800 font-semibold text-base transition"
           >
             Criar novo motorista
           </button>

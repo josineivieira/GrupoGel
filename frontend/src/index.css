@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================
+   Base reset
+========================= */
 * {
   margin: 0;
   padding: 0;
@@ -13,19 +16,23 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  background: #f7f7fb;
+  color: #111827;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
 
-/* Mobile optimizations */
+/* =========================
+   Mobile optimizations
+========================= */
 input,
 button,
 select,
 textarea {
-  font-size: 16px !important;
-  /* Prevents zoom on iOS */
+  font-size: 16px; /* Prevents zoom on iOS */
 }
 
 @media (max-width: 640px) {
@@ -33,33 +40,43 @@ textarea {
     font-size: 14px;
   }
 
-  button {
+  button,
+  a,
+  input,
+  select,
+  textarea {
     min-height: 44px;
-    min-width: 44px;
-    /* Better touch targets for mobile */
   }
 }
 
-/* Scrollbar styling */
+/* =========================
+   Scrollbar styling
+========================= */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
+  background: rgba(17, 24, 39, 0.25);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: rgba(17, 24, 39, 0.35);
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
-/* Loading spinner */
+/* =========================
+   Loading spinner
+========================= */
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -70,9 +87,24 @@ textarea {
   animation: spin 1s linear infinite;
 }
 
-/* Smooth transitions */
-* {
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+/* =========================
+   Focus styles (pro)
+========================= */
+:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.6);
+  outline-offset: 2px;
+}
+
+/* =========================
+   Smooth transitions (sem pesar)
+========================= */
+a,
+button,
+input,
+select,
+textarea {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease,
+    box-shadow 0.2s ease, transform 0.15s ease;
 }
 
 input:focus,
@@ -80,4 +112,41 @@ button:focus,
 select:focus,
 textarea:focus {
   outline: none;
+}
+
+/* =========================
+   UI Premium (reutilizável)
+========================= */
+@layer components {
+  .ui-page {
+    @apply max-w-6xl mx-auto px-4 py-6;
+  }
+
+  .ui-card {
+    @apply bg-white border border-gray-200 rounded-2xl shadow-sm;
+  }
+
+  .ui-card-hover {
+    @apply transition hover:shadow-md;
+  }
+
+  .ui-section-title {
+    @apply text-lg sm:text-xl font-extrabold tracking-tight text-gray-900;
+  }
+
+  .ui-muted {
+    @apply text-sm text-gray-600;
+  }
+
+  .ui-btn-primary {
+    @apply rounded-xl px-4 py-3 font-semibold text-white shadow-sm transition active:scale-95 bg-emerald-600 hover:bg-emerald-700;
+  }
+
+  .ui-btn-ghost {
+    @apply rounded-xl px-4 py-3 font-semibold border border-gray-200 bg-white hover:bg-gray-50 transition active:scale-95;
+  }
+
+  .ui-input {
+    @apply w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200;
+  }
 }

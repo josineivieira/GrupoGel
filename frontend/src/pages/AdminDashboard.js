@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../components/Header';
 import Toast from '../components/Toast';
 import { adminService } from '../services/authService';
-import { FaArrowLeft, FaDownload, FaEye } from 'react-icons/fa';
+import { FaArrowLeft, FaDownload, FaEye, FaTrash } from 'react-icons/fa';
 import {
   LineChart,
   Line,
@@ -13,7 +12,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer
 } from 'recharts';
 
@@ -33,6 +31,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, filters]);
 
   const loadData = async () => {
@@ -66,6 +65,19 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDelete = async (deliveryId) => {
+    if (window.confirm('Tem certeza que deseja deletar esta entrega? Esta ação não pode ser desfeita.')) {
+      try {
+        await adminService.deleteDelivery(deliveryId);
+        setToast({ message: 'Entrega deletada com sucesso', type: 'success' });
+        setSelectedDelivery(null);
+        loadData(); // Recarrega a tabela
+      } catch (error) {
+        setToast({ message: 'Erro ao deletar entrega', type: 'error' });
+      }
+    }
+  };
+
   const documentLabels = {
     canhotNF: '📄 Canhoto NF',
     canhotCTE: '📦 Canhoto CTE',
@@ -75,9 +87,7 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <Header />
-
+    <div>
       <div className="max-w-7xl mx-auto p-4 pb-20">
         <button
           onClick={() => navigate('/home')}
@@ -95,12 +105,17 @@ const AdminDashboard = () => {
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-gray-600 font-semibold mb-2">Total de Entregas</h3>
               <p className="text-4xl font-bold text-purple-600">{statistics.totalDeliveries}</p>
-              <p className="text-sm text-gray-500 mt-2">Período: {period === 'day' ? 'Hoje' : period === 'week' ? 'Esta semana' : 'Este mês'}</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Período:{' '}
+                {period === 'day' ? 'Hoje' : period === 'week' ? 'Esta semana' : 'Este mês'}
+              </p>
             </div>
 
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-gray-600 font-semibold mb-2">Motoristas Ativos</h3>
-              <p className="text-4xl font-bold text-green-600">{statistics.deliveriesByDriver.length}</p>
+              <p className="text-4xl font-bold text-green-600">
+                {statistics.deliveriesByDriver.length}
+              </p>
             </div>
           </div>
         )}
@@ -111,23 +126,28 @@ const AdminDashboard = () => {
             {/* Daily deliveries */}
             {statistics.dailyDeliveries.length > 0 && (
               <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Entregas por Dia (últimos 30 dias)</h3>
+                <h3 className="text-lg font-bold text-gray-800 mb-4">
+                  Entregas por Dia (últimos 30 dias)
+                </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={statistics.dailyDeliveries}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="_id" />
+                    <XAxis 
+                      dataKey="_id" 
+                      tickFormatter={(date) => new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                    />
                     <YAxis />
-                    <Tooltip />
+                    <Tooltip formatter={(value) => value} labelFormatter={(label) => new Date(label).toLocaleDateString('pt-BR')} />
                     <Line type="monotone" dataKey="count" stroke="#3b82f6" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             )}
 
-            {/* Deliveries by driver */}
+            {/* Deliveries by transport */}
             {statistics.deliveriesByDriver.length > 0 && (
               <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Entregas por Motorista</h3>
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Entregas por Transportadora</h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={statistics.deliveriesByDriver}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -201,31 +221,41 @@ const AdminDashboard = () => {
 
           {loading ? (
             <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto"></div>
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto" />
             </div>
           ) : deliveries.length === 0 ? (
-            <div className="p-8 text-center text-gray-600">
-              Nenhuma entrega encontrada
-            </div>
+            <div className="p-8 text-center text-gray-600">Nenhuma entrega encontrada</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Nº Entrega</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Motorista</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Data</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Ações</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Nº Entrega
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Motorista
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Data
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Ações
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {deliveries.map((delivery) => (
                     <tr key={delivery._id} className="border-b border-gray-200 hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">{delivery.deliveryNumber}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        {delivery.deliveryNumber}
+                      </td>
                       <td className="px-4 py-3 text-gray-700">{delivery.driverName}</td>
                       <td className="px-4 py-3 text-gray-700">
-                        {new Date(delivery.submittedAt).toLocaleDateString('pt-BR')}
+                        {delivery.submittedAt ? new Date(delivery.submittedAt).toLocaleDateString('pt-BR') : '-'}
                       </td>
                       <td className="px-4 py-3">
                         <span className="px-2 py-1 text-sm rounded-full bg-green-100 text-green-800">
@@ -254,14 +284,23 @@ const AdminDashboard = () => {
             <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
               <div className="p-6 border-b border-gray-200 flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-800">
-                  Entrega: {selectedDelivery.deliveryNumber}
+                  Container: {selectedDelivery.deliveryNumber}
                 </h3>
-                <button
-                  onClick={() => setSelectedDelivery(null)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
-                >
-                  ✕
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDelete(selectedDelivery._id)}
+                    className="text-red-600 hover:text-red-800 text-lg p-2 hover:bg-red-50 rounded-lg transition"
+                    title="Deletar entrega"
+                  >
+                    <FaTrash />
+                  </button>
+                  <button
+                    onClick={() => setSelectedDelivery(null)}
+                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
 
               <div className="p-6 space-y-6">
@@ -281,7 +320,7 @@ const AdminDashboard = () => {
                     </div>
                     {selectedDelivery.vehiclePlate && (
                       <div>
-                        <p className="text-gray-600">Placa</p>
+                        <p className="text-gray-600">Transportadora</p>
                         <p className="font-medium">{selectedDelivery.vehiclePlate}</p>
                       </div>
                     )}
@@ -298,7 +337,7 @@ const AdminDashboard = () => {
                         className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                       >
                         <span className="font-medium text-gray-800">{label}</span>
-                        {selectedDelivery.documents[key] ? (
+                        {selectedDelivery.documents?.[key] ? (
                           <button
                             onClick={() => handleDownload(selectedDelivery._id, key)}
                             className="flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition text-sm"
@@ -327,11 +366,7 @@ const AdminDashboard = () => {
       </div>
 
       {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
     </div>
   );
