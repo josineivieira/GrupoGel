@@ -30,31 +30,45 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 // ✅ Serve uploads (para abrir imagens no navegador)
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
-// Health check ANTES das rotas
-app.get("/api/health", (req, res) => {
-  res.json({ success: true, message: "Server is running" });
-});
-
-// Routes
+// Routes - ANTES do frontend catch-all
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/deliveries", require("./routes/delivery"));
 app.use("/api/admin", require("./routes/admin"));
 
+// Health check
+app.get("/api/health", (req, res) => {
+  res.json({ success: true, message: "Server is running" });
+});
+
 // Servir frontend (em produção ou quando buildPath existe)
 const buildPath = path.join(__dirname, '../../frontend/build');
 const fs = require('fs');
+const { execSync } = require('child_process');
 
+// Tentar compilar o frontend se não existir
+if (!fs.existsSync(buildPath)) {
+  console.log('🔨 Compilando frontend...');
+  try {
+    execSync('cd frontend && npm install && npm run build', { 
+      cwd: path.join(__dirname, '../../'),
+      stdio: 'inherit' 
+    });
+  } catch (e) {
+    console.error('⚠ Erro ao compilar frontend:', e.message);
+  }
+}
+
+// Servir frontend estático se existir
 if (fs.existsSync(buildPath)) {
   console.log('✓ Servindo frontend estático de:', buildPath);
-  // Servir arquivos estáticos ANTES da rota catch-all
   app.use(express.static(buildPath));
   
-  // Serve index.html para rotas não encontradas (React Router) - ÚLTIMA rota
+  // Serve index.html para rotas não encontradas (React Router)
   app.get('*', (req, res) => {
     res.sendFile(path.join(buildPath, 'index.html'));
   });
 } else {
-  console.log('⚠ Pasta frontend/build não encontrada');
+  console.log('⚠ Frontend não disponível - servindo apenas API');
   // Se não tem build, servir erro
   app.get('*', (req, res) => {
     res.status(404).json({ success: false, message: "Frontend não compilado. Acesse /api/health para testar API." });
