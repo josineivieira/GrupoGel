@@ -30,6 +30,11 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 // ✅ Serve uploads (para abrir imagens no navegador)
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
+// Health check ANTES das rotas
+app.get("/api/health", (req, res) => {
+  res.json({ success: true, message: "Server is running" });
+});
+
 // Routes
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/deliveries", require("./routes/delivery"));
@@ -41,25 +46,20 @@ const fs = require('fs');
 
 if (fs.existsSync(buildPath)) {
   console.log('✓ Servindo frontend estático de:', buildPath);
+  // Servir arquivos estáticos ANTES da rota catch-all
   app.use(express.static(buildPath));
   
-  // Serve index.html para rotas não encontradas (React Router)
+  // Serve index.html para rotas não encontradas (React Router) - ÚLTIMA rota
   app.get('*', (req, res) => {
     res.sendFile(path.join(buildPath, 'index.html'));
   });
 } else {
   console.log('⚠ Pasta frontend/build não encontrada');
+  // Se não tem build, servir erro
+  app.get('*', (req, res) => {
+    res.status(404).json({ success: false, message: "Frontend não compilado. Acesse /api/health para testar API." });
+  });
 }
-
-// Health check
-app.get("/api/health", (req, res) => {
-  res.json({ success: true, message: "Server is running" });
-});
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: "Rota não encontrada" });
-});
 
 // Error handler
 // eslint-disable-next-line no-unused-vars
