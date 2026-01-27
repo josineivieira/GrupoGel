@@ -43,20 +43,6 @@ app.get("/api/health", (req, res) => {
 // Servir frontend (em produção ou quando buildPath existe)
 const buildPath = path.join(__dirname, '../../frontend/build');
 const fs = require('fs');
-const { execSync } = require('child_process');
-
-// Tentar compilar o frontend se não existir
-if (!fs.existsSync(buildPath)) {
-  console.log('🔨 Compilando frontend...');
-  try {
-    execSync('cd frontend && npm install && npm run build', { 
-      cwd: path.join(__dirname, '../../'),
-      stdio: 'inherit' 
-    });
-  } catch (e) {
-    console.error('⚠ Erro ao compilar frontend:', e.message);
-  }
-}
 
 // Servir frontend estático se existir
 if (fs.existsSync(buildPath)) {
@@ -68,10 +54,10 @@ if (fs.existsSync(buildPath)) {
     res.sendFile(path.join(buildPath, 'index.html'));
   });
 } else {
-  console.log('⚠ Frontend não disponível - servindo apenas API');
-  // Se não tem build, servir erro
+  console.log('⚠ Frontend build não encontrado - servindo página de loading');
+  // Servir HTML de loading
   app.get('*', (req, res) => {
-    res.status(404).json({ success: false, message: "Frontend não compilado. Acesse /api/health para testar API." });
+    res.sendFile(path.join(__dirname, 'index.html'));
   });
 }
 
