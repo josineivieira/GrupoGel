@@ -1,1 +1,1 @@
-web: bash build-and-start.sh
+web: bash -c "cd frontend && npm install && npm run build && cd ../backend && npm start"
