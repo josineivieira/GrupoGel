@@ -3,6 +3,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const dotenv = require("dotenv");
 const path = require("path");
+const fs = require("fs");
 
 dotenv.config({ path: path.join(__dirname, "../../.env") });
 
