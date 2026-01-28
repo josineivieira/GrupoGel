@@ -1,1 +1,1 @@
-web: npm run build:frontend && node backend/src/server.js
+web: node build.js && node backend/src/server.js

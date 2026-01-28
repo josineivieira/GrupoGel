@@ -42,22 +42,27 @@ app.get("/api/health", (req, res) => {
 });
 
 // Servir frontend estático (React build)
-// Em produção, o script build-and-start.sh cria o build
-const buildPath = path.join(__dirname, '../../frontend/build');
+// Tenta múltiplos caminhos (desenvolvimento vs produção)
+let buildPath = null;
+const possiblePaths = [
+  path.join(__dirname, '../../frontend/build'),     // desenvolvimento local
+  path.join(__dirname, '../frontend/build'),        // alternativo
+  '/app/frontend/build',                            // Railway deployment
+  '/frontend/build',                                // Railway alternativo
+];
 
-console.log('🔍 Procurando build em:', buildPath);
-console.log('📂 __dirname:', __dirname);
-console.log('📂 Conteúdo de', path.join(__dirname, '..'));
-try {
-  const serverDir = fs.readdirSync(path.join(__dirname, '..'));
-  console.log('  -', serverDir);
-} catch(e) {}
-try {
-  const rootDir = fs.readdirSync(path.join(__dirname, '../..'));
-  console.log('📂 Root:', rootDir.slice(0, 10));
-} catch(e) {}
+for (const p of possiblePaths) {
+  if (fs.existsSync(p)) {
+    buildPath = p;
+    break;
+  }
+}
 
-if (fs.existsSync(buildPath)) {
+console.log('🔍 Procurando build...');
+console.log('  Caminhos testados:', possiblePaths);
+console.log('  ✓ Encontrado em:', buildPath || 'NENHUM!');
+
+if (buildPath) {
   console.log('✓ Frontend build encontrado! Servindo de:', buildPath);
   app.use(express.static(buildPath));
   
@@ -75,7 +80,7 @@ if (fs.existsSync(buildPath)) {
     }
   });
 } else {
-  console.log('⚠️  Build não encontrado em:', buildPath);
+  console.log('⚠️  Build não encontrado em nenhum local!');
   console.log('🚨 O frontend precisa ser compilado!');
   
   // API ainda funciona mesmo sem frontend
