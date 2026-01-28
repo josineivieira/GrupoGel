@@ -40,24 +40,44 @@ app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "Server is running" });
 });
 
-// Servir frontend (em produção ou quando buildPath existe)
-const buildPath = path.join(__dirname, '../../frontend/build');
-const fs = require('fs');
+// Servir frontend estático (React build)
+// Tenta primeiro em public/build (produção) depois em ../../frontend/build (desenvolvimento)
+let buildPath = path.join(__dirname, '../public/build');
+if (!fs.existsSync(buildPath)) {
+  buildPath = path.join(__dirname, '../../frontend/build');
+}
 
-// Servir frontend estático se existir
+console.log('🔍 Procurando build em:', buildPath);
+
 if (fs.existsSync(buildPath)) {
-  console.log('✓ Servindo frontend estático de:', buildPath);
+  console.log('✓ Frontend build encontrado! Servindo de:', buildPath);
   app.use(express.static(buildPath));
   
-  // Serve index.html para rotas não encontradas (React Router)
+  // Serve index.html para rotas não encontradas (React Router SPA)
   app.get('*', (req, res) => {
-    res.sendFile(path.join(buildPath, 'index.html'));
+    const indexPath = path.join(buildPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).json({ 
+        success: false, 
+        message: 'Frontend não encontrado',
+        path: indexPath 
+      });
+    }
   });
 } else {
-  console.log('⚠ Frontend build não encontrado - servindo página de loading');
-  // Servir HTML de loading
+  console.log('⚠️  Build não encontrado em nenhum local');
+  console.log('📂 Diretórios procurados:');
+  console.log('  1.', path.join(__dirname, '../public/build'));
+  console.log('  2.', path.join(__dirname, '../../frontend/build'));
+  
+  // API ainda funciona mesmo sem frontend
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.status(404).json({ 
+      success: false, 
+      message: 'API disponível em /api, frontend não encontrado' 
+    });
   });
 }
 

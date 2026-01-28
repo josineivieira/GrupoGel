@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "build": "echo 'No build step needed for backend'"
+    "build": "node scripts/copy-frontend.js"
   },
   "keywords": [
     "delivery",
