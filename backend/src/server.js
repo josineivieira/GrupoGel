@@ -12,6 +12,14 @@ const mockdb = require('./mockdb');
 
 const app = express();
 
+// Global error handlers to help diagnose crashes
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err && err.stack ? err.stack : err);
+});
+process.on('unhandledRejection', (reason, p) => {
+  console.error('UNHANDLED REJECTION at Promise:', p, 'reason:', reason);
+});
+
 // Middleware
 app.use(helmet());
 
@@ -35,6 +43,7 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/deliveries", require("./routes/delivery"));
 app.use("/api/admin", require("./routes/admin"));
+app.use("/api/admin/reconciliation", require("./routes/reconciliation"));
 
 // Health check
 app.get("/api/health", (req, res) => {

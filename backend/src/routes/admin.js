@@ -24,23 +24,26 @@ router.get("/statistics", auth, onlyAdmin, async (req, res) => {
     
     const totalDeliveries = deliveries.length;
     const submitted = deliveries.filter(d => d.status === "submitted").length;
-    const draft = deliveries.filter(d => d.status === "draft").length;
+    const pending = deliveries.filter(d => d.status === "pending").length;
     
-    // Agrupa por transportadora (placa)
-    const deliveriesByTransport = {};
+    // Agrupa por transportadora (placa) - removendo espaços em branco
+    // Agrupa por contratado (userName)
+    const deliveriesByContratado = {};
     deliveries.forEach(d => {
-      const transport = d.vehiclePlate || "Sem Placa";
-      if (!deliveriesByTransport[transport]) {
-        deliveriesByTransport[transport] = 0;
+      const contratado = (d.userName || "Sem Contratado").trim();
+      if (!deliveriesByContratado[contratado]) {
+        deliveriesByContratado[contratado] = 0;
       }
-      deliveriesByTransport[transport]++;
+      deliveriesByContratado[contratado]++;
     });
 
     const dailyDeliveries = [];
     const daysMap = {};
     
     deliveries.forEach(d => {
-      const date = new Date(d.createdAt).toISOString().split('T')[0];
+      // Agrupa pela data local (fuso de São Paulo) para evitar deslocamentos por UTC
+      const dt = new Date(d.createdAt);
+      const date = dt.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }); // YYYY-MM-DD
       if (!daysMap[date]) {
         daysMap[date] = 0;
       }
@@ -54,8 +57,8 @@ router.get("/statistics", auth, onlyAdmin, async (req, res) => {
     const statistics = {
       totalDeliveries,
       submitted,
-      draft,
-      deliveriesByDriver: Object.entries(deliveriesByTransport).map(([transport, count]) => ({ _id: transport, count })),
+      pending,
+      deliveriesByDriver: Object.entries(deliveriesByContratado).map(([contratado, count]) => ({ _id: contratado, count })),
       dailyDeliveries: dailyDeliveries.sort((a, b) => new Date(a._id) - new Date(b._id))
     };
 
@@ -72,25 +75,99 @@ router.get("/statistics", auth, onlyAdmin, async (req, res) => {
  * filtros:
  *  - status=draft|submitted|all
  *  - q=texto
+ * 
+ * Consolida automaticamente arquivos das duas pastas de uploads
  */
 router.get("/deliveries", auth, onlyAdmin, async (req, res) => {
   try {
-    const { status, q } = req.query;
+    const { status, q, startDate, endDate } = req.query;
+    console.log('📋 GET /admin/deliveries recebido com filtros:', { status, q, startDate, endDate });
+    
+    // Debug: mostra total de entregas disponíveis
+    const allDeliveries = mockdb.find("deliveries", {});
+    console.log('  ℹ️  Total de entregas na DB:', allDeliveries.length);
+    
     const filter = {};
 
-    if (status && status !== "all") filter.status = status;
+    if (status && status !== "all") {
+      console.log('  ✓ Aplicando filtro de status:', status);
+      filter.status = status;
+    }
 
     if (q && q.trim()) {
       const text = q.trim();
+      console.log('  ✓ Aplicando filtro de busca:', text);
       filter.$or = [
         { deliveryNumber: { $regex: text, $options: "i" } },
         { vehiclePlate: { $regex: text, $options: "i" } },
         { userName: { $regex: text, $options: "i" } },
+        { driverName: { $regex: text, $options: "i" } }
       ];
     }
 
-    const deliveries = mockdb.find("deliveries", filter).sort((a, b) => b.createdAt - a.createdAt);
-    return res.json({ deliveries });
+    // Busca inicialmente usando o mockdb (aplica filtros simples)
+    let deliveries = mockdb.find("deliveries", filter).sort((a, b) => b.createdAt - a.createdAt);
+    console.log('  → Após mockdb.find com filter:', JSON.stringify(filter), '- Retornou', deliveries.length, 'entregas');
+
+    // Filtra por intervalo de datas se fornecido (formato YYYY-MM-DD)
+    if (startDate || endDate) {
+      console.log('  ✓ Aplicando filtro de datas:', { startDate, endDate });
+      const start = startDate ? new Date(startDate + 'T00:00:00Z') : null;
+      const end = endDate ? new Date(endDate + 'T23:59:59Z') : null;
+      console.log('  → Datas parseadas:', { start: start?.toISOString(), end: end?.toISOString() });
+      
+      const deliveriesBefore = deliveries.length;
+      deliveries = deliveries.filter(d => {
+        const created = new Date(d.createdAt);
+        console.log(`    Verificando ${d.deliveryNumber}: createdAt=${created.toISOString()}`);
+        if (start && created < start) {
+          console.log(`      ✗ Antes da data inicial`);
+          return false;
+        }
+        if (end && created > end) {
+          console.log(`      ✗ Depois da data final`);
+          return false;
+        }
+        console.log(`      ✓ Dentro do intervalo`);
+        return true;
+      });
+      console.log('  → Após filtro de datas:', deliveriesBefore, '→', deliveries.length, 'entregas');
+    }
+    
+    console.log('✅ Retornando', deliveries.length, 'entregas');
+    
+    // Consolida arquivos de ambas as pastas para cada entrega
+    const uploadsPath1 = path.join(__dirname, "../uploads");
+    const uploadsPath2 = path.join(__dirname, "../src/uploads");
+    
+    const deliveriesWithFiles = deliveries.map(delivery => {
+      const consolidatedFiles = {};
+      
+      // Busca arquivos nas duas pastas
+      [uploadsPath1, uploadsPath2].forEach(uploadsPath => {
+        const deliveryPath = path.join(uploadsPath, delivery.deliveryNumber);
+        if (fs.existsSync(deliveryPath)) {
+          try {
+            const files = fs.readdirSync(deliveryPath);
+            files.forEach(file => {
+              if (!consolidatedFiles[file]) {
+                consolidatedFiles[file] = true;
+              }
+            });
+          } catch (err) {
+            console.error(`Erro ao listar arquivos em ${deliveryPath}:`, err);
+          }
+        }
+      });
+      
+      return {
+        ...delivery,
+        uploadedFiles: Object.keys(consolidatedFiles), // Lista de arquivos consolidados
+        hasFiles: Object.keys(consolidatedFiles).length > 0
+      };
+    });
+    
+    return res.json({ deliveries: deliveriesWithFiles });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Erro ao listar entregas (admin)" });
@@ -162,6 +239,55 @@ router.get("/deliveries/:id/documents/:documentType/download", auth, onlyAdmin, 
 });
 
 /**
+ * PUT /api/admin/deliveries/:id
+ * Atualiza dados de uma entrega (apenas admin)
+ */
+router.put("/deliveries/:id", auth, onlyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { deliveryNumber, userName, driverName, vehiclePlate, observations } = req.body;
+
+    console.log('📝 Recebido PUT /deliveries/:id', { id, deliveryNumber, userName, driverName, vehiclePlate, observations });
+
+    // Validar se motivo da edição foi fornecido
+    if (!observations || observations.trim() === '') {
+      console.log('❌ Motivo vazio');
+      return res.status(400).json({ message: "Motivo da edição é obrigatório" });
+    }
+
+    // Busca entrega
+    const delivery = mockdb.findById("deliveries", id);
+    console.log('🔍 Entrega encontrada:', delivery?.deliveryNumber);
+    if (!delivery) {
+      return res.status(404).json({ message: "Entrega não encontrada" });
+    }
+
+    // Atualiza campos
+    const updates = {};
+    if (deliveryNumber !== undefined) updates.deliveryNumber = deliveryNumber.toUpperCase();
+    if (userName !== undefined) updates.userName = userName;
+    if (driverName !== undefined) updates.driverName = driverName;
+    if (vehiclePlate !== undefined) updates.vehiclePlate = vehiclePlate.trim();
+    if (observations !== undefined) updates.observations = observations;
+    updates.editedAt = new Date().toISOString();
+    updates.editReason = observations;
+
+    console.log('🔄 Updates a fazer:', updates);
+
+    const updated = mockdb.updateOne("deliveries", { _id: id }, updates);
+    console.log('✅ Atualizado:', updated?.deliveryNumber);
+    if (!updated) {
+      return res.status(500).json({ message: "Erro ao atualizar entrega" });
+    }
+
+    return res.json({ success: true, delivery: updated, message: "Entrega atualizada com sucesso" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Erro ao atualizar entrega" });
+  }
+});
+
+/**
  * DELETE /api/admin/deliveries/:id
  * Deleta uma entrega (apenas admin)
  */
@@ -221,8 +347,12 @@ router.post("/users", auth, onlyAdmin, async (req, res) => {
       return res.status(400).json({ message: "Preencha todos os campos" });
     }
 
-    // Verifica se usuário existe
-    const existing = mockdb.find("drivers", { username });
+    // Normaliza username/email para minúsculas — login procura por username.toLowerCase()
+    const normalizedUsername = String(username).toLowerCase();
+    const normalizedEmail = String(email).toLowerCase();
+
+    // Verifica se usuário existe (por username ou email)
+    const existing = mockdb.find('drivers', { $or: [{ username: normalizedUsername }, { email: normalizedEmail }] });
     if (existing.length > 0) {
       return res.status(400).json({ message: "Usuário já existe" });
     }
@@ -232,8 +362,8 @@ router.post("/users", auth, onlyAdmin, async (req, res) => {
 
     const newUser = {
       _id: 'user_' + crypto.randomUUID(),
-      username,
-      email,
+      username: normalizedUsername,
+      email: normalizedEmail,
       name,
       fullName: name,
       password: hashedPassword,
@@ -244,7 +374,9 @@ router.post("/users", auth, onlyAdmin, async (req, res) => {
       createdAt: new Date()
     };
 
-    mockdb.collections.drivers.push(newUser);
+    // Use API do mockdb para inserir (mantém consistência)
+    const created = mockdb.create('drivers', newUser);
+    console.log('➕ Novo usuário criado (sem senha no log):', { _id: created._id, username: created.username, email: created.email, role: created.role });
 
     return res.json({ 
       success: true, 
@@ -323,3 +455,20 @@ router.delete("/users/:id", auth, onlyAdmin, async (req, res) => {
 });
 
 module.exports = router;
+
+// DEBUG: export drivers to JSON file (admin only) - useful for backup
+// Use: GET /api/admin/debug/export-drivers
+router.get('/debug/export-drivers', auth, onlyAdmin, async (req, res) => {
+  try {
+    const drivers = mockdb.find('drivers', {});
+    const exportDir = path.join(__dirname, '../data/exports');
+    if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
+    const filename = `drivers-export-${Date.now()}.json`;
+    const fullPath = path.join(exportDir, filename);
+    fs.writeFileSync(fullPath, JSON.stringify({ drivers }, null, 2));
+    return res.json({ success: true, message: 'Export realizado', path: fullPath });
+  } catch (err) {
+    console.error('Erro export drivers:', err);
+    return res.status(500).json({ success: false, message: 'Erro ao exportar drivers' });
+  }
+});

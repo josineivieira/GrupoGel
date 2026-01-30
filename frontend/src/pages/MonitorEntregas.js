@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Toast from '../components/Toast';
 import { adminService } from '../services/authService';
-import { FaArrowLeft, FaEye, FaDownload, FaSync, FaFilter, FaTimes, FaTrash } from 'react-icons/fa';
+import { FaArrowLeft, FaEye, FaDownload, FaSync, FaFilter, FaTimes, FaTrash, FaEdit, FaEllipsisV } from 'react-icons/fa';
 
 const MonitorEntregas = () => {
   const navigate = useNavigate();
@@ -13,6 +13,16 @@ const MonitorEntregas = () => {
   const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState(30);
+  const [editingDelivery, setEditingDelivery] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const menuRef = useRef(null);
+  const [editForm, setEditForm] = useState({
+    deliveryNumber: '',
+    userName: '',
+    driverName: '',
+    vehiclePlate: '',
+    observations: ''
+  });
   
   // Filtros
   const [filters, setFilters] = useState({
@@ -27,7 +37,7 @@ const MonitorEntregas = () => {
   const [stats, setStats] = useState({
     total: 0,
     submitted: 0,
-    draft: 0,
+    pending: 0,
     byDriver: []
   });
 
@@ -35,17 +45,20 @@ const MonitorEntregas = () => {
   const loadDeliveries = useCallback(async () => {
     try {
       setLoading(true);
+      // Log para debug: mostrar quais filtros estão sendo enviados
+      console.log('🔍 Enviando filtros ao backend:', filters);
       const response = await adminService.getDeliveries(filters);
       const data = response.data.deliveries || [];
+      console.log('📥 Resposta do backend:', data.length, 'entregas');
       setDeliveries(data);
       
       // Calcula stats
       const submitted = data.filter(d => d.status === 'submitted').length;
-      const draft = data.filter(d => d.status === 'draft').length;
+      const pending = data.filter(d => d.status === 'pending').length;
       setStats({
         total: data.length,
         submitted,
-        draft,
+        pending,
         byDriver: [...new Set(data.map(d => d.userName))].length
       });
 
@@ -71,13 +84,19 @@ const MonitorEntregas = () => {
   // Aplica filtros locais
   useEffect(() => {
     let result = [...deliveries];
-
-    if (filters.status !== 'all') {
-      result = result.filter(d => d.status === filters.status);
-    }
-
     setFilteredDeliveries(result);
   }, [deliveries, filters]);
+
+  // Fecha dropdown de ações ao clicar fora
+  useEffect(() => {
+    const handleDocClick = (e) => {
+      if (openMenuId && menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('click', handleDocClick);
+    return () => document.removeEventListener('click', handleDocClick);
+  }, [openMenuId]);
 
   const handleDownload = async (deliveryId, documentType) => {
     try {
@@ -111,10 +130,41 @@ const MonitorEntregas = () => {
     }
   };
 
+  const handleEditStart = (delivery) => {
+    setEditingDelivery(delivery._id);
+    setEditForm({
+      deliveryNumber: delivery.deliveryNumber || '',
+      userName: delivery.userName || '',
+      driverName: delivery.driverName || '',
+      vehiclePlate: delivery.vehiclePlate || '',
+      observations: delivery.observations || ''
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!editForm.observations || editForm.observations.trim() === '') {
+      setToast({ message: 'Motivo da edição é obrigatório', type: 'error' });
+      return;
+    }
+
+    console.log('📝 Salvando edição:', { id: editingDelivery, data: editForm });
+
+    try {
+      const response = await adminService.updateDelivery(editingDelivery, editForm);
+      console.log('✅ Resposta do servidor:', response);
+      setToast({ message: 'Entrega atualizada com sucesso', type: 'success' });
+      setEditingDelivery(null);
+      loadDeliveries();
+    } catch (error) {
+      console.error('❌ Erro ao salvar:', error);
+      setToast({ message: 'Erro ao atualizar entrega: ' + (error.response?.data?.message || error.message), type: 'error' });
+    }
+  };
+
   const getStatusBadge = (status) => {
     const badges = {
       submitted: 'bg-green-100 text-green-800 border border-green-300',
-      draft: 'bg-yellow-100 text-yellow-800 border border-yellow-300'
+      pending: 'bg-yellow-100 text-yellow-800 border border-yellow-300'
     };
     return badges[status] || 'bg-gray-100 text-gray-800';
   };
@@ -162,8 +212,8 @@ const MonitorEntregas = () => {
           </div>
           
           <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-yellow-500">
-            <p className="text-gray-600 text-sm font-semibold">Rascunho</p>
-            <p className="text-3xl font-bold text-yellow-600">{stats.draft}</p>
+            <p className="text-gray-600 text-sm font-semibold">Pendente</p>
+            <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
           </div>
           
           <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-purple-500">
@@ -229,7 +279,7 @@ const MonitorEntregas = () => {
                 >
                   <option value="all">Todos</option>
                   <option value="submitted">Entregues</option>
-                  <option value="draft">Rascunho</option>
+                  <option value="pending">Pendente</option>
                 </select>
               </div>
 
@@ -287,10 +337,10 @@ const MonitorEntregas = () => {
                     Número
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Motorista
+                    Contratado
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Transportadora
+                    Motorista
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                     Status
@@ -320,12 +370,12 @@ const MonitorEntregas = () => {
                     <td className="px-4 py-3 text-gray-700">
                       {delivery.userName}
                     </td>
-                    <td className="px-4 py-3 text-gray-700 font-mono text-sm">
-                      {delivery.vehiclePlate || '-'}
+                    <td className="px-4 py-3 text-gray-700">
+                      {delivery.driverName || '-'}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(delivery.status)}`}>
-                        {delivery.status === 'submitted' ? '✓ Entregue' : '⏳ Rascunho'}
+                        {delivery.status === 'submitted' ? '✓ Entregue' : '⏳ Pendente'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
@@ -347,20 +397,45 @@ const MonitorEntregas = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <div className="flex flex-wrap gap-1 justify-center">
-                        <button
-                          onClick={() => setSelectedDelivery(delivery)}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition"
-                        >
-                          <FaEye /> Visualizar
-                        </button>
-                        <button
-                          onClick={() => handleDelete(delivery._id)}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition"
-                          title="Deletar entrega"
-                        >
-                          <FaTrash /> Deletar
-                        </button>
+                      <div className="flex items-center justify-center">
+                        <div className="relative inline-block text-left" ref={openMenuId === delivery._id ? menuRef : null}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === delivery._id ? null : delivery._id); }}
+                            className="inline-flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 text-gray-700 transition"
+                            aria-haspopup="true"
+                            aria-expanded={openMenuId === delivery._id}
+                            title="Ações"
+                          >
+                            <FaEllipsisV />
+                          </button>
+
+                          {openMenuId === delivery._id && (
+                            <div className="origin-top-right absolute right-0 mt-2 w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                              <div className="py-1">
+                                <button
+                                  onClick={() => { setSelectedDelivery(delivery); setOpenMenuId(null); }}
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                >
+                                  <FaEye /> Visualizar
+                                </button>
+                                <button
+                                  onClick={() => { handleEditStart(delivery); setOpenMenuId(null); }}
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                  title="Editar entrega"
+                                >
+                                  <FaEdit /> Editar
+                                </button>
+                                <button
+                                  onClick={() => { handleDelete(delivery._id); setOpenMenuId(null); }}
+                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 flex items-center gap-2"
+                                  title="Deletar entrega"
+                                >
+                                  <FaTrash /> Deletar
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -399,20 +474,20 @@ const MonitorEntregas = () => {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase">Motorista</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase">Contratado</p>
                   <p className="text-lg font-semibold text-gray-800">
                     {selectedDelivery.userName}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase">Email</p>
-                  <p className="text-sm text-gray-700">{selectedDelivery.userEmail}</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase">Nome do Motorista</p>
+                  <p className="text-lg font-semibold text-gray-800">
+                    {selectedDelivery.driverName || '-'}
+                  </p>
                 </div>
                 <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase">Transportadora</p>
-                  <p className="text-lg font-mono font-semibold text-gray-800">
-                    {selectedDelivery.vehiclePlate || '-'}
-                  </p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase">Email</p>
+                  <p className="text-sm text-gray-700">{selectedDelivery.userEmail}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase">Status</p>
@@ -421,7 +496,7 @@ const MonitorEntregas = () => {
                       selectedDelivery.status
                     )}`}
                   >
-                    {selectedDelivery.status === 'submitted' ? '✓ Entregue' : '⏳ Rascunho'}
+                    {selectedDelivery.status === 'submitted' ? '✓ Entregue' : '⏳ Pendente'}
                   </span>
                 </div>
               </div>
@@ -474,6 +549,93 @@ const MonitorEntregas = () => {
                   Criado em:{' '}
                   {new Date(selectedDelivery.createdAt).toLocaleString('pt-BR')}
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição */}
+      {editingDelivery && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-gray-800">Editar Entrega</h2>
+              <button
+                onClick={() => setEditingDelivery(null)}
+                className="text-2xl hover:text-gray-200 transition"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Número do Container
+                </label>
+                <input
+                  type="text"
+                  value={editForm.deliveryNumber}
+                  onChange={(e) => setEditForm({ ...editForm, deliveryNumber: e.target.value.toUpperCase() })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Ex: CGMU5575947"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Contratado
+                </label>
+                <input
+                  type="text"
+                  value={editForm.userName}
+                  onChange={(e) => setEditForm({ ...editForm, userName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Ex: Josinei vieira"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Nome do Motorista
+                </label>
+                <input
+                  type="text"
+                  value={editForm.driverName}
+                  onChange={(e) => setEditForm({ ...editForm, driverName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Ex: ALAN"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Motivo da Edição *
+                </label>
+                <textarea
+                  value={editForm.observations}
+                  onChange={(e) => setEditForm({ ...editForm, observations: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Explique por que está editando (obrigatório)"
+                  rows="2"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={handleEditSave}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold"
+                >
+                  Salvar
+                </button>
+                <button
+                  onClick={() => setEditingDelivery(null)}
+                  className="flex-1 px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition font-semibold"
+                >
+                  Cancelar
+                </button>
               </div>
             </div>
           </div>

@@ -68,7 +68,7 @@ const Register = () => {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
             GeoTransportes
           </h1>
-          <p className="text-gray-600 font-semibold">Novo Motorista</p>
+          <p className="text-gray-600 font-semibold">Novo Usuário</p>
           <p className="text-gray-500 text-sm mt-1">Criar conta para usar o sistema</p>
         </div>
 

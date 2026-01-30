@@ -1,1 +1,28 @@
 node_modules
+# Generated artifacts and temporary files
+*.zip
+*.xls
+*.xlsx
+*.csv
+reconciliacao*
+ngrok.exe
+cloudflared-windows-amd64/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment / local configs
+.env
+.env.local
+frontend/.env.local
+
+# Build artifacts
+frontend/build/
+
+# Logs and DB
+server.log
+backend/data/db.json
+
+# Uploads (large binary files)
+backend/uploads/
+uploads/

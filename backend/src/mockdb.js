@@ -25,7 +25,20 @@ class MockDatabase {
     try {
       if (fs.existsSync(DB_FILE)) {
         const data = fs.readFileSync(DB_FILE, 'utf8');
-        const parsed = JSON.parse(data);
+        let parsed;
+        try {
+          parsed = JSON.parse(data);
+        } catch (parseErr) {
+          // Backup corrupted file to avoid silent overwrite
+          const corruptPath = DB_FILE + '.corrupt.' + Date.now();
+          try {
+            fs.renameSync(DB_FILE, corruptPath);
+            console.error(`⚠️ db.json parse error. Backed up corrupt file to ${corruptPath}`);
+          } catch (mvErr) {
+            console.error('⚠️ Falha ao mover arquivo corrompido:', mvErr);
+          }
+          return false;
+        }
         this.collections = parsed;
         console.log('✓ Database loaded from file');
         return true;
@@ -171,20 +184,22 @@ class MockDatabase {
       results = results.filter(item => {
         for (let [key, value] of Object.entries(query)) {
           if (key === '$or') {
-            // Handle OR queries
+            // Handle OR queries: valor é um array de objetos de query
             const orMatch = value.some(orQuery => {
-              return Object.entries(orQuery).every(([k, v]) => {
-                if (k.includes('$')) {
-                  if (k.includes('$regex')) {
-                    return new RegExp(v, 'i').test(item[k.replace('.$regex', '')]);
-                  }
+              // Cada orQuery é like: { deliveryNumber: { $regex: '...', $options: 'i' } }
+              return Object.entries(orQuery).every(([fieldName, fieldQuery]) => {
+                // fieldName é tipo "deliveryNumber", fieldQuery é tipo { $regex: '...', $options: 'i' }
+                if (typeof fieldQuery === 'object' && fieldQuery.$regex) {
+                  // Trata regex com case-insensitive
+                  return new RegExp(fieldQuery.$regex, 'i').test(String(item[fieldName]));
                 }
-                return item[k] === v;
+                // Trata igualdade simples
+                return item[fieldName] === fieldQuery;
               });
             });
             if (!orMatch) return false;
           } else if (typeof value === 'object' && value.$regex) {
-            if (!new RegExp(value.$regex, 'i').test(item[key])) return false;
+            if (!new RegExp(value.$regex, 'i').test(String(item[key]))) return false;
           } else {
             if (item[key] !== value) return false;
           }
@@ -209,6 +224,10 @@ class MockDatabase {
   create(model, data) {
     const collection = this.collections[model];
     if (!collection) return null;
+
+    if (model === 'deliveries') {
+      console.log('📦 Salvando entrega no mockdb:', data);
+    }
 
     const item = {
       _id: crypto.randomUUID(),

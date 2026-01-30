@@ -1,85 +1,31 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const deliverySchema = new mongoose.Schema({
-  deliveryNumber: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  driverId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Driver',
-    required: true
-  },
-  driverName: {
-    type: String,
-    required: true
-  },
-  vehiclePlate: {
-    type: String,
-    trim: true
-  },
-  observations: {
-    type: String,
-    trim: true
-  },
-  deliveryDate: {
-    type: Date,
-    default: Date.now
-  },
-  documents: {
-    canhotNF: {
-      filename: String,
-      path: String,
-      size: Number,
-      uploadedAt: Date
-    },
-    canhotCTE: {
-      filename: String,
-      path: String,
-      size: Number,
-      uploadedAt: Date
-    },
-    diarioBordo: {
-      filename: String,
-      path: String,
-      size: Number,
-      uploadedAt: Date
-    },
-    devolucaoVazio: {
-      filename: String,
-      path: String,
-      size: Number,
-      uploadedAt: Date
-    },
-    retiradaCheio: {
-      filename: String,
-      path: String,
-      size: Number,
-      uploadedAt: Date
-    }
-  },
-  status: {
-    type: String,
-    enum: ['draft', 'submitted', 'completed'],
-    default: 'draft'
-  },
-  submittedAt: {
-    type: Date
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
-});
+const DeliverySchema = new mongoose.Schema(
+  {
+    deliveryNumber: { type: String, required: true }, // container
+    vehiclePlate: { type: String, default: "" },      // transportadora no seu form
+    observations: { type: String, default: "" },
+    driverName: { type: String, default: "" },        // nome do motorista
 
-// Index for better query performance
-deliverySchema.index({ driverId: 1, deliveryDate: -1 });
-deliverySchema.index({ deliveryNumber: 1 });
-deliverySchema.index({ submittedAt: -1 });
+    status: { type: String, enum: ["pending", "submitted"], default: "pending" },
 
-module.exports = mongoose.model('Delivery', deliverySchema);
+    // usuário que criou (motorista/admin)
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    userName: { type: String, default: "" },
+    userEmail: { type: String, default: "" },
+
+    deliveryDate: { type: Date, default: Date.now },
+
+    // caminhos/urls dos documentos
+    documents: {
+      canhotNF: { type: String, default: null },
+      canhotCTE: { type: String, default: null },
+      diarioBordo: { type: String, default: null },
+      devolucaoVazio: { type: String, default: null },
+      retiradaCheio: { type: String, default: null },
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("Delivery", DeliverySchema);

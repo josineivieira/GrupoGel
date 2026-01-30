@@ -31,7 +31,9 @@ const upload = multer({ auth, storage });
 // =======================
 router.post("/", auth, async (req, res) => {
   try {
-    const { deliveryNumber, vehiclePlate, observations } = req.body;
+    const { deliveryNumber, vehiclePlate, observations, driverName } = req.body;
+
+    console.log('📦 Recebido no backend:', { deliveryNumber, vehiclePlate, observations, driverName });
 
     if (!deliveryNumber) {
       return res.status(400).json({ message: "Número da entrega obrigatório" });
@@ -43,9 +45,10 @@ router.post("/", auth, async (req, res) => {
       deliveryNumber,
       vehiclePlate,
       observations,
+      driverName: driverName || "",
       userId: req.user.id,
       userName: driver?.fullName || "Unknown",
-      status: "draft",
+      status: "pending",
       documents: {}
     });
 
@@ -61,7 +64,14 @@ router.post("/", auth, async (req, res) => {
 // GET /api/deliveries
 // =======================
 router.get("/", auth, async (req, res) => {
-  const deliveries = mockdb.find("deliveries", { userId: req.user.id }).sort((a, b) => b.createdAt - a.createdAt);
+  const { status } = req.query;
+  const query = { userId: req.user.id };
+  
+  if (status && status !== 'all') {
+    query.status = status;
+  }
+  
+  const deliveries = mockdb.find("deliveries", query).sort((a, b) => b.createdAt - a.createdAt);
   res.json({ deliveries });
 });
 
@@ -147,7 +157,7 @@ router.delete("/:id", auth, async (req, res) => {
   const delivery = mockdb.findById("deliveries", req.params.id);
   if (!delivery) return res.status(404).json({ message: "Entrega não encontrada" });
 
-  if (delivery.status !== "draft") {
+  if (delivery.status !== "pending") {
     return res.status(400).json({ message: "Entrega enviada não pode ser deletada" });
   }
 

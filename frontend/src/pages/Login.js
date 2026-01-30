@@ -124,7 +124,7 @@ const Login = () => {
             onClick={() => navigate('/register')}
             className="text-emerald-700 hover:text-emerald-800 font-semibold text-base transition"
           >
-            Criar novo motorista
+            Criar novo usuário
           </button>
         </div>
       </div>

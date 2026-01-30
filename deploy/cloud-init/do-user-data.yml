@@ -1,0 +1,15 @@
+#cloud-config
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-plugin
+  - git
+runcmd:
+  - [ sh, -c, 'usermod -aG docker $USER || true' ]
+  - [ sh, -c, 'mkdir -p /opt/geo-delivery' ]
+  - [ sh, -c, 'cd /opt/geo-delivery && rm -rf * || true' ]
+  - [ sh, -c, 'git clone https://github.com/<your-repo>.git /opt/geo-delivery' ]
+  - [ sh, -c, 'cd /opt/geo-delivery && ./scripts/deploy.sh' ]
+  - [ sh, -c, 'systemctl daemon-reload || true' ]
+  - [ sh, -c, 'systemctl enable --now geo-delivery.service || true' ]
+final_message: "The system is finally up, enjoy your deployment!"

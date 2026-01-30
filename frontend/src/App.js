@@ -13,6 +13,7 @@ import MinhasEntregas from './pages/MinhasEntregas';
 import AdminDashboard from './pages/AdminDashboard';
 import MonitorEntregas from './pages/MonitorEntregas';
 import UserManagement from './pages/UserManagement';
+import Reconciliation from './pages/Reconciliation';
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
@@ -94,6 +95,17 @@ function AppContent() {
           <PrivateRoute adminOnly>
             <AppLayout>
               <UserManagement />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/reconciliacao"
+        element={
+          <PrivateRoute adminOnly>
+            <AppLayout>
+              <Reconciliation />
             </AppLayout>
           </PrivateRoute>
         }

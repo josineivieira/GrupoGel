@@ -1,0 +1,15 @@
+# Caddy reverse proxy template
+# Replace REPLACE_WITH_DOMAIN with your actual domain
+
+REPLACE_WITH_DOMAIN {
+  encode gzip
+  reverse_proxy localhost:5000 {
+    header_up Host {host}
+    header_up X-Real-IP {remote}
+    header_up X-Forwarded-For {remote}
+    header_up X-Forwarded-Proto {scheme}
+  }
+  log {
+    output file /var/log/caddy/geo-delivery.access.log
+  }
+}

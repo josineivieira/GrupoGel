@@ -1,14 +1,18 @@
 services:
   - type: web
     name: app-entregas
-    runtime: node
+    env: docker
+    dockerfilePath: ./Dockerfile
     region: ohio
-    plan: free
-    buildCommand: cd backend && npm install
-    startCommand: cd backend && npm start
+    plan: starter
+    buildCommand: ""
+    startCommand: "node backend/src/server.js"
+    healthCheckPath: /api/health
     autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 5000
+        value: "5000"
+      - key: JWT_SECRET
+        value: "REPLACE_WITH_A_SECURE_SECRET"

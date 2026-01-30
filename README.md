@@ -73,11 +73,41 @@ Isso iniciará:
 - Backend: http://localhost:5000
 - Frontend: http://localhost:3000
 
-### Produção
+### Produção (rodando localmente)
 ```bash
-npm run build
+npm run build:frontend
 npm run start
 ```
+
+### Deploy com Docker (recomendado)
+O repositório já inclui um `Dockerfile` multi-stage e `docker-compose.yml`. Para subir a aplicação em um servidor que suporte Docker (ex: VPS com Ubuntu):
+
+```bash
+# Copiar projeto para o servidor (ex: /opt/geo-delivery)
+# Executar o script de deploy incluído
+sudo scripts/deploy.sh
+
+# Verificar logs
+sudo docker compose logs -f
+
+# Parar e remover
+sudo docker compose down
+```
+
+O serviço ficará acessível em `http://<HOST>:5000` e o frontend será servido pelo backend (SPA). O `docker-compose.yml` mapeia as pastas locais `backend/uploads` e `backend/data` como volumes para persistência.
+
+Também incluí um template `deploy/systemd/geo-delivery.service` para habilitar o app como um serviço systemd e scripts `scripts/deploy.sh` e `scripts/backup.sh` para facilitar deploy e backup.
+
+Veja `DEPLOY_VPS.md` para um passo a passo completo.
+
+Recomendo deploy com Docker Compose em uma VPS (DigitalOcean, AWS EC2, etc.) usando o `scripts/deploy.sh` e o serviço systemd `deploy/systemd/geo-delivery.service`.
+
+Se você quiser deploy automatizado (CI/CD), há um workflow pronto em `.github/workflows/deploy.yml` que:
+- Constrói e publica a imagem no Docker Hub (exige `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` secretos no GitHub)
+- Conecta por SSH ao servidor para executar `git reset && docker compose up -d --build`
+
+Coloque as chaves/segredos no repositório do GitHub (Settings -> Secrets) e ative o workflow na branch `main`.
+
 
 ## 📂 Estrutura do Projeto
 

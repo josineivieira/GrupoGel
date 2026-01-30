@@ -69,12 +69,16 @@ exports.login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Usuário e senha obrigatórios' });
     }
 
-    // Check for driver
-    const driver = mockdb.findOne('drivers', { username: username.toLowerCase() });
+    // Allow login by username or email (case-insensitive)
+    const loginKey = String(username).toLowerCase();
+    let driver = mockdb.findOne('drivers', { username: loginKey });
+    if (!driver) {
+      driver = mockdb.findOne('drivers', { email: loginKey });
+    }
     console.log('👤 Driver found:', driver ? driver.username : 'NOT FOUND');
 
     if (!driver) {
-      console.log('❌ Driver not found:', username.toLowerCase());
+      console.log('❌ Driver not found for:', loginKey);
       return res.status(401).json({ success: false, message: 'Credenciais inválidas' });
     }
 

@@ -75,7 +75,7 @@ const MinhasEntregas = () => {
           <div className="flex gap-2 flex-wrap">
             {[
               { label: 'Todas', value: 'all' },
-              { label: 'Rascunho', value: 'draft' },
+              { label: 'Pendente', value: 'pending' },
               { label: 'Enviadas', value: 'submitted' }
             ].map((f) => (
               <button
@@ -129,6 +129,13 @@ const MinhasEntregas = () => {
                         </p>
                       </div>
 
+                      {delivery.driverName && (
+                        <div>
+                          <p className="text-gray-500">Motorista</p>
+                          <p className="font-medium">{delivery.driverName}</p>
+                        </div>
+                      )}
+
                       {delivery.vehiclePlate && (
                         <div>
                           <p className="text-gray-500">Transportadora</p>
@@ -145,7 +152,7 @@ const MinhasEntregas = () => {
                               : 'text-orange-600'
                           }`}
                         >
-                          {delivery.status === 'submitted' ? '✅ Enviada' : '📝 Rascunho'}
+                          {delivery.status === 'submitted' ? '✅ Enviada' : '⏳ Pendente'}
                         </p>
                       </div>
 
@@ -170,7 +177,7 @@ const MinhasEntregas = () => {
                       <FaEye />
                     </button>
 
-                    {delivery.status === 'draft' && (
+                    {delivery.status === 'pending' && (
                       <button
                         onClick={() => handleDelete(delivery._id)}
                         className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition"

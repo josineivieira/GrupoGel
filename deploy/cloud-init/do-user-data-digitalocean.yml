@@ -1,0 +1,58 @@
+#cloud-config
+# DigitalOcean / cloud-init user-data to provision a droplet and deploy the app
+# - Replace REPLACE_WITH_GIT_REPO and REPLACE_WITH_DOMAIN
+# - Add your SSH public key under ssh_authorized_keys if you want to login
+
+package_update: true
+package_upgrade: true
+packages:
+  - git
+  - curl
+  - gnupg
+  - lsb-release
+  - ca-certificates
+  - apt-transport-https
+runcmd:
+  # Install Docker
+  - [ sh, -c, 'curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh' ]
+  - [ sh, -c, 'apt-get update -y && apt-get install -y docker-compose-plugin' ]
+
+  # Install Caddy (for automatic TLS)
+  - [ sh, -c, 'curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/gpg.key" | gpg --dearmor -o /usr/share/keyrings/caddy-archive-keyring.gpg' ]
+  - [ sh, -c, 'curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/deb.deb.txt" > /etc/apt/sources.list.d/caddy-stable.list' ]
+  - [ sh, -c, 'apt update && apt install -y caddy' ]
+
+  # Create app directory
+  - [ sh, -c, 'mkdir -p /opt/geo-delivery && chown $USER:$USER /opt/geo-delivery' ]
+
+  # Git clone repo (replace placeholder)
+  - [ sh, -c, 'if [ -d /opt/geo-delivery/.git ]; then cd /opt/geo-delivery && git fetch --all && git reset --hard origin/main; else git clone REPLACE_WITH_GIT_REPO /opt/geo-delivery; fi' ]
+
+  # Configure environment (replace domain placeholder)
+  - [ sh, -c, 'cat > /opt/geo-delivery/.env <<EOF
+REACT_APP_API_URL=https://REPLACE_WITH_DOMAIN/api
+PORT=5000
+JWT_SECRET=change_me_to_a_secure_value
+EOF' ]
+
+  # Copy Caddyfile
+  - [ sh, -c, 'cat > /etc/caddy/Caddyfile <<EOF
+REPLACE_WITH_DOMAIN {
+  reverse_proxy localhost:5000
+  tls {
+    # Let Caddy manage TLS automatically
+  }
+}
+EOF' ]
+  - [ sh, -c, 'systemctl restart caddy' ]
+
+  # Run deploy script (build & start docker-compose)
+  - [ sh, -c, 'cd /opt/geo-delivery && chmod +x scripts/deploy.sh && sudo ./scripts/deploy.sh' ]
+
+  # Ensure systemd unit is installed and enabled
+  - [ sh, -c, 'mkdir -p /etc/systemd/system || true' ]
+  - [ sh, -c, 'cp /opt/geo-delivery/deploy/systemd/geo-delivery.service /etc/systemd/system/geo-delivery.service || true' ]
+  - [ sh, -c, 'systemctl daemon-reload || true' ]
+  - [ sh, -c, 'systemctl enable --now geo-delivery.service || true' ]
+
+final_message: "GeoDelivery provisioning complete. Edit /opt/geo-delivery/.env to change secrets if needed."

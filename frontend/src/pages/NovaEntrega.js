@@ -14,7 +14,8 @@ const NovaEntrega = () => {
   const [formData, setFormData] = useState({
     deliveryNumber: '',
     vehiclePlate: '',
-    observations: ''
+    observations: '',
+    driverName: ''
   });
   const [uploadingDoc, setUploadingDoc] = useState(null);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
@@ -57,7 +58,8 @@ const NovaEntrega = () => {
         setFormData({
           deliveryNumber: delivery.deliveryNumber || '',
           vehiclePlate: delivery.vehiclePlate || '',
-          observations: delivery.observations || ''
+          observations: delivery.observations || '',
+          driverName: delivery.driverName || ''
         });
         setSubmitted(delivery.status === 'submitted');
       }
@@ -83,6 +85,8 @@ const NovaEntrega = () => {
       setToast({ message: 'Número da entrega é obrigatório', type: 'error' });
       return;
     }
+
+    console.log('📦 Criando entrega com dados:', formData);
 
     try {
       const response = await deliveryService.createDelivery(formData);
@@ -209,13 +213,28 @@ const NovaEntrega = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Motorista (automático)
+                  Contratado (automático)
                 </label>
                 <input
                   type="text"
                   value={user?.name || ''}
                   disabled
                   className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Nome do Motorista *
+                </label>
+                <input
+                  type="text"
+                  name="driverName"
+                  value={formData.driverName || ''}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:outline-none text-base"
+                  placeholder="DIGITE O NOME DO MOTORISTA"
+                  required
                 />
               </div>
 
@@ -240,25 +259,7 @@ const NovaEntrega = () => {
 
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Transportadora (opcional)
-                </label>
-                <input
-  type="text"
-  name="vehiclePlate"
-  value={formData.vehiclePlate}
-  onChange={(e) =>
-    setFormData({
-      ...formData,
-      vehiclePlate: e.target.value.toUpperCase()
-    })
-  }
-  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:outline-none text-base uppercase"
-  placeholder="ABC-1234"
-/>
 
-              </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">

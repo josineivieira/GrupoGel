@@ -10,7 +10,8 @@ import {
   FaCheckCircle,
   FaClock,
   FaFileAlt,
-  FaUsers
+  FaUsers,
+  FaDatabase
 } from 'react-icons/fa';
 
 const Home = () => {
@@ -183,6 +184,8 @@ const Home = () => {
                 </div>
               </div>
             </button>
+
+
           </div>
         )}
 

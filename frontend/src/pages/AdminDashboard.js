@@ -12,7 +12,9 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  Label,
+  Cell
 } from 'recharts';
 
 const AdminDashboard = () => {
@@ -134,10 +136,25 @@ const AdminDashboard = () => {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
                       dataKey="_id" 
-                      tickFormatter={(date) => new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                      tickFormatter={(date) => {
+                        // Interpreta a string YYYY-MM-DD como data local (evita parse como UTC que causa -1 dia)
+                        const parts = String(date).split('-');
+                        if (parts.length === 3) {
+                          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                          return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                        }
+                        return date;
+                      }}
                     />
                     <YAxis />
-                    <Tooltip formatter={(value) => value} labelFormatter={(label) => new Date(label).toLocaleDateString('pt-BR')} />
+                    <Tooltip formatter={(value) => value} labelFormatter={(label) => {
+                      const parts = String(label).split('-');
+                      if (parts.length === 3) {
+                        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                        return d.toLocaleDateString('pt-BR');
+                      }
+                      return label;
+                    }} />
                     <Line type="monotone" dataKey="count" stroke="#3b82f6" />
                   </LineChart>
                 </ResponsiveContainer>
@@ -147,14 +164,31 @@ const AdminDashboard = () => {
             {/* Deliveries by transport */}
             {statistics.deliveriesByDriver.length > 0 && (
               <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Entregas por Transportadora</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={statistics.deliveriesByDriver}>
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Entregas por Contratado</h3>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={statistics.deliveriesByDriver} margin={{ top: 20, right: 30, left: 0, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="_id" />
+                    <XAxis 
+                      dataKey="_id" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={100}
+                    />
                     <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#10b981" />
+                    <Tooltip formatter={(value) => `${value} entrega(s)`} />
+                    <Bar dataKey="count" fill="#10b981" radius={[8, 8, 0, 0]}>
+                      {statistics.deliveriesByDriver.map((entry, index) => (
+                        <Label 
+                          key={index}
+                          dataKey="count" 
+                          position="top"
+                          offset={5}
+                          fill="#1f2937"
+                          fontSize={12}
+                          fontWeight="bold"
+                        />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>

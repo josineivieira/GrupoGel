@@ -24,9 +24,19 @@ export const deliveryService = {
 };
 
 export const adminService = {
-  getDeliveries: (params) => api.get('/admin/deliveries', { params }),
+  getDeliveries: (filters) => {
+    // Normaliza chaves do frontend para os parâmetros que o backend espera
+    const params = {};
+    if (!filters) return api.get('/admin/deliveries');
+    if (filters.status) params.status = filters.status;
+    if (filters.searchTerm) params.q = filters.searchTerm;
+    if (filters.startDate) params.startDate = filters.startDate;
+    if (filters.endDate) params.endDate = filters.endDate;
+    return api.get('/admin/deliveries', { params });
+  },
   getStatistics: (params) => api.get('/admin/statistics', { params }),
   getDeliveryDetails: (id) => api.get(`/admin/deliveries/${id}`),
+  updateDelivery: (id, data) => api.put(`/admin/deliveries/${id}`, data),
   downloadDocument: (deliveryId, documentType) => 
     api.get(`/admin/deliveries/${deliveryId}/documents/${documentType}/download`, { 
       responseType: 'blob' 
@@ -36,5 +46,14 @@ export const adminService = {
   getUsers: () => api.get('/admin/users'),
   createUser: (data) => api.post('/admin/users', data),
   updateUser: (id, data) => api.put(`/admin/users/${id}`, data),
-  deleteUser: (id) => api.delete(`/admin/users/${id}`)
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  // Reconciliação
+  uploadReconciliation: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/admin/reconciliation/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  applyReconciliation: (updates) => api.post('/admin/reconciliation/apply', { updates })
 };
