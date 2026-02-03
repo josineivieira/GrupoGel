@@ -14,8 +14,8 @@ RUN npm install
 COPY . .
 
 # Render usa a variável PORT
-EXPOSE 3000
+EXPOSE 10000
 
 # Comando de start
-CMD ["npm", "start"]
+CMD ["node", "backend/start.js"]
 
