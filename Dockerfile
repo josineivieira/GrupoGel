@@ -5,12 +5,14 @@ FROM node:18-slim
 WORKDIR /app
 
 # Copia package.json primeiro (melhor cache)
-COPY package*.json ./
+COPY backend/package*.json ./backend/
 
 # Instala dependências
+WORKDIR /app/backend
 RUN npm install
 
 # Copia o resto do projeto
+WORKDIR /app
 COPY . .
 
 # Render usa a variável PORT
