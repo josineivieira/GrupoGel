@@ -62,6 +62,13 @@ const Login = () => {
             src="/images/geotransporteslogo.svg"
             alt="GeoTransportes Logo"
             className="h-20 w-auto mx-auto mb-4"
+            onError={(e) => {
+              // Fallback to alternate filename (case differences on server)
+              console.warn('Logo failed to load from /images/geotransporteslogo.svg; trying alternate path');
+              e.target.onerror = null;
+              e.target.src = '/images/GeoTransportesLogo.svg';
+            }}
+            onLoad={() => console.debug('Logo loaded successfully')}
           />
           <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-purple-700 to-blue-700 bg-clip-text text-transparent mb-2">
             GeoTransportes
