@@ -31,10 +31,12 @@ export const adminService = {
   updateDelivery: (id, data) => api.put(`/admin/deliveries/${id}`, data),
   downloadDocument: (deliveryId, documentType, index) => {
     const params = index !== undefined ? { params: { index } } : {};
-    return api.get(`/admin/deliveries/${deliveryId}/documents/${documentType}/download`, { responseType: 'blob', ...params });
+    // Some downloads can be large; allow more time for the server to respond
+    return api.get(`/admin/deliveries/${deliveryId}/documents/${documentType}/download`, { responseType: 'blob', timeout: 120000, ...params });
   },
   downloadAllDocuments: (deliveryId) => {
-    return api.get(`/admin/deliveries/${deliveryId}/documents/zip`, { responseType: 'blob' });
+    // ZIP creation can take longer; increase timeout to 120s
+    return api.get(`/admin/deliveries/${deliveryId}/documents/zip`, { responseType: 'blob', timeout: 120000 });
   },
   getDriverDetails: (driverId) => api.get(`/admin/drivers/${driverId}`),
   deleteDelivery: (id) => api.delete(`/admin/deliveries/${id}`),
