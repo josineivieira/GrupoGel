@@ -67,6 +67,16 @@ const Header = () => {
 
           {/* City chip removed: selection happens at login. */}
 
+          {/* Quick logout button */}
+          <button
+            onClick={handleLogout}
+            className="h-10 w-10 grid place-items-center rounded-xl bg-white/10 border border-white/15 hover:bg-white/15 active:scale-95 transition"
+            aria-label="Sair"
+            title="Sair"
+          >
+            <FaSignOutAlt className="text-lg" />
+          </button>
+
           {/* Botão menu (clean, sem ficar grandão) */}
           <button
             onClick={() => setMenuOpen(true)}
