@@ -1,6 +1,11 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || '/api';
+const DEFAULT_BACKEND = 'https://grupogel.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com') ? DEFAULT_BACKEND : '/api');
+
+if (!process.env.REACT_APP_API_URL && typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
+  console.debug('🔧 Fallback: using backend', DEFAULT_BACKEND);
+}
 
 
 
