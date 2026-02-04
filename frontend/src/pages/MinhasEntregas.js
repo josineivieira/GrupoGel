@@ -8,13 +8,21 @@ const MinhasEntregas = () => {
   const navigate = useNavigate();
   const [deliveries, setDeliveries] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+
+  // Debounce search input and reload when filter or debounced search change
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(searchTerm), 350);
+    return () => clearTimeout(id);
+  }, [searchTerm]);
 
   useEffect(() => {
     loadDeliveries();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  }, [filter, debouncedSearch]);
 
   const loadDeliveries = async () => {
     setLoading(true);
@@ -22,6 +30,9 @@ const MinhasEntregas = () => {
       const params = {};
       if (filter !== 'all') {
         params.status = filter;
+      }
+      if (debouncedSearch && debouncedSearch.trim() !== '') {
+        params.q = debouncedSearch.trim();
       }
       const response = await deliveryService.getMyDeliveries(params);
       setDeliveries(response.data.deliveries);
@@ -72,24 +83,36 @@ const MinhasEntregas = () => {
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="flex gap-2 flex-wrap">
-            {[
-              { label: 'Todas', value: 'all' },
-              { label: 'Pendente', value: 'pending' },
-              { label: 'Enviadas', value: 'submitted' }
-            ].map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setFilter(f.value)}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  filter === f.value
-                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+          <div className="flex gap-2 flex-wrap items-center">
+            <div className="flex gap-2">
+              {[
+                { label: 'Todas', value: 'all' },
+                { label: 'Pendente', value: 'pending' },
+                { label: 'Enviadas', value: 'submitted' }
+              ].map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setFilter(f.value)}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    filter === f.value
+                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="ml-auto w-full sm:w-64">
+              <input
+                type="text"
+                placeholder="Pesquisar por número, motorista ou placa"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
           </div>
         </div>
 

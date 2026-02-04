@@ -66,11 +66,21 @@ router.post("/", auth, async (req, res) => {
 // =======================
 router.get("/", auth, async (req, res) => {
   const db = req.mockdb;
-  const { status } = req.query;
+  const { status, q } = req.query;
   const query = { userId: req.user.id };
   
   if (status && status !== 'all') {
     query.status = status;
+  }
+
+  // Support free-text search across deliveryNumber, driverName and vehiclePlate
+  if (q && String(q).trim() !== '') {
+    const term = String(q).trim();
+    query.$or = [
+      { deliveryNumber: { $regex: term } },
+      { driverName: { $regex: term } },
+      { vehiclePlate: { $regex: term } }
+    ];
   }
   
   const deliveries = db.find("deliveries", query).sort((a, b) => b.createdAt - a.createdAt);
