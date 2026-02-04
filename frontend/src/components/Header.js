@@ -41,9 +41,10 @@ const Header = () => {
           aria-label="Ir para início"
         >
           <img
-            src="/images/GeoTransportesLogo.svg"
+            src="/images/geotransporteslogo.svg"
             alt="GeoTransportes Logo"
             className="h-8 sm:h-10 w-auto shrink-0"
+            onError={(e) => { e.target.onerror = null; e.target.src = '/images/GeoTransportesLogo.svg'; }}
           />
 
           <div className="leading-tight text-left">

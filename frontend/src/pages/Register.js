@@ -45,12 +45,15 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-purple-600 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 w-full overflow-hidden overscroll-none bg-gradient-to-br from-purple-600 via-blue-600 to-purple-600 flex items-center justify-center px-4 py-10"
+      style={{ height: '100svh', paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)' }}
+    >
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-5 rounded-full -mr-48 -mt-48"></div>
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-white opacity-5 rounded-full -ml-48 -mb-48"></div>
 
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 relative z-10">
+      <div className="w-full max-w-md max-h-[90svh] overflow-auto bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-8 relative z-10 border border-white/40">
         <button
           onClick={() => navigate('/login')}
           className="flex items-center gap-2 text-purple-600 hover:text-purple-800 font-semibold mb-6 transition"
@@ -60,10 +63,16 @@ const Register = () => {
         </button>
 
         <div className="text-center mb-8">
-          <img 
-            src="/images/geotransporteslogo.svg" 
-            alt="GeoTransportes Logo" 
+          <img
+            src="/images/geotransporteslogo.svg"
+            alt="GeoTransportes Logo"
             className="h-20 w-auto mx-auto mb-4"
+            onError={(e) => {
+              console.warn('Register logo failed to load; trying alternate path');
+              e.target.onerror = null;
+              e.target.src = '/images/GeoTransportesLogo.svg';
+            }}
+            onLoad={() => console.debug('Register logo loaded')}
           />
           <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
             GeoTransportes

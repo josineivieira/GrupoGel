@@ -21,8 +21,6 @@ function AppContent() {
   const { isAuthenticated } = useAuth();
   const { city } = useCity();
 
-  // If city not selected, show selector first
-  if (!city) return <CitySelector />;
 
   return (
     <Routes>
