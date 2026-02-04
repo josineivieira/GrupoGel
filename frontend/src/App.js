@@ -16,6 +16,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import MonitorEntregas from './pages/MonitorEntregas';
 import UserManagement from './pages/UserManagement';
 import Reconciliation from './pages/Reconciliation';
+import Profile from './pages/Profile';
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
@@ -33,6 +34,17 @@ function AppContent() {
           <PrivateRoute>
             <AppLayout>
               <Home />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <Profile />
             </AppLayout>
           </PrivateRoute>
         }

@@ -65,8 +65,7 @@ const Header = () => {
             <span className="font-medium">{user?.name}</span>
           </div>
 
-          {/* City chip */}
-          <CityChip />
+          {/* City chip removed: selection happens at login. */}
 
           {/* Botão menu (clean, sem ficar grandão) */}
           <button
@@ -121,17 +120,16 @@ const Header = () => {
   Início
 </button>
 
-
               <button
-  onClick={handleLogout}
-  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl
-             bg-gray-50 hover:bg-gray-100
-             border border-gray-200
-             transition text-left font-semibold"
->
-  <FaSignOutAlt className="text-rose-600" />
-  Sair
-</button>
+                onClick={() => { setMenuOpen(false); navigate('/profile'); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl
+                           bg-gray-50 hover:bg-gray-100
+                           border border-gray-200
+                           transition text-left font-semibold"
+              >
+                <FaUser className="text-purple-600" />
+                Ajustes
+              </button>
 
             </div>
 
@@ -145,18 +143,6 @@ const Header = () => {
   );
 };
 
-function CityChip() {
-  const { city, setCity, config } = useCity();
-  if (!city) return null;
-  return (
-    <button
-      onClick={() => setCity(null)}
-      className="hidden sm:flex items-center gap-2 text-sm bg-white/10 border border-white/15 px-3 py-2 rounded-full hover:bg-white/15"
-      title="Clique para trocar cidade"
-    >
-      <span className="font-medium">{config?.name || city}</span>
-    </button>
-  );
-}
+// CityChip removed: selection now happens on login. Kept function removed to avoid rendering.
 
 export default Header;

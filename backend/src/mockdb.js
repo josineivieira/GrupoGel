@@ -51,7 +51,10 @@ class MockDatabase {
   saveToFile() {
     try {
       this.ensureDataDir();
-      fs.writeFileSync(this.DB_FILE, JSON.stringify(this.collections, null, 2));
+      // Write atomically: write to temp file then rename
+      const tmpPath = this.DB_FILE + '.tmp';
+      fs.writeFileSync(tmpPath, JSON.stringify(this.collections, null, 2));
+      fs.renameSync(tmpPath, this.DB_FILE);
     } catch (error) {
       console.error('Erro ao salvar banco:', error);
     }
@@ -275,7 +278,10 @@ const instances = {};
 function forCity(city = 'manaus') {
   const name = String(city || 'manaus').toLowerCase();
   if (!instances[name]) {
-    const dbPath = path.join(__dirname, '..', 'data', name, 'db.json');
+    // If BACKEND_DATA_DIR is provided, use it to store per-city DB files (persistent disk)
+    const baseDir = process.env.BACKEND_DATA_DIR ? path.resolve(process.env.BACKEND_DATA_DIR) : path.join(__dirname, '..', 'data');
+    const dbPath = path.join(baseDir, name, 'db.json');
+    console.log('📁 MockDB using file:', dbPath);
     instances[name] = new MockDatabase(dbPath);
   }
   return instances[name];

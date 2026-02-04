@@ -19,6 +19,8 @@ const MonitorEntregas = () => {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [openMenuUp, setOpenMenuUp] = useState(false);
   const menuRef = useRef(null);
+  const [sortBy, setSortBy] = useState(null); // e.g. 'deliveryNumber' or 'createdAt'
+  const [sortDir, setSortDir] = useState('asc');
   const [editForm, setEditForm] = useState({
     deliveryNumber: '',
     userName: '',
@@ -35,12 +37,6 @@ const MonitorEntregas = () => {
     endDate: ''
   });
   const [showFilters, setShowFilters] = useState(false);
-
-  // Sorting
-  const [sort, setSort] = useState({ by: 'createdAt', dir: 'desc' });
-  const handleSort = (by) => {
-    setSort(prev => ({ by, dir: prev.by === by ? (prev.dir === 'asc' ? 'desc' : 'asc') : 'asc' }));
-  };
 
   // Stats rápidas
   const [stats, setStats] = useState({
@@ -94,55 +90,27 @@ const MonitorEntregas = () => {
   useEffect(() => {
     let result = [...deliveries];
 
-    // Status filter
-    if (filters.status && filters.status !== 'all') {
-      result = result.filter(d => d.status === filters.status);
-    }
-
-    // Search term filter (numero, contratado, motorista)
-    if (filters.searchTerm && filters.searchTerm.trim() !== '') {
-      const q = filters.searchTerm.trim().toLowerCase();
-      result = result.filter(d => (
-        (d.deliveryNumber || '').toLowerCase().includes(q) ||
-        (d.userName || '').toLowerCase().includes(q) ||
-        (d.driverName || '').toLowerCase().includes(q)
-      ));
-    }
-
-    // Date filters
-    if (filters.startDate) {
-      const start = new Date(filters.startDate);
-      result = result.filter(d => new Date(d.createdAt) >= start);
-    }
-    if (filters.endDate) {
-      const end = new Date(filters.endDate);
-      result = result.filter(d => new Date(d.createdAt) <= end);
-    }
-
-    // Sorting
-    if (sort && sort.by) {
+    // Client-side sorting
+    if (sortBy) {
       result.sort((a, b) => {
-        const by = sort.by;
-        let va = a[by] || '';
-        let vb = b[by] || '';
-
-        // date handling
-        if (by === 'createdAt') {
-          va = new Date(a.createdAt).getTime();
-          vb = new Date(b.createdAt).getTime();
-        } else {
-          va = String(va).toLowerCase();
-          vb = String(vb).toLowerCase();
+        const va = a[sortBy];
+        const vb = b[sortBy];
+        if (sortBy === 'createdAt') {
+          const da = new Date(va);
+          const db = new Date(vb);
+          return sortDir === 'asc' ? da - db : db - da;
         }
-
-        if (va < vb) return sort.dir === 'asc' ? -1 : 1;
-        if (va > vb) return sort.dir === 'asc' ? 1 : -1;
+        // string fallback
+        const sa = String(va || '').toLowerCase();
+        const sb = String(vb || '').toLowerCase();
+        if (sa < sb) return sortDir === 'asc' ? -1 : 1;
+        if (sa > sb) return sortDir === 'asc' ? 1 : -1;
         return 0;
       });
     }
 
     setFilteredDeliveries(result);
-  }, [deliveries, filters, sort]);
+  }, [deliveries, filters, sortBy, sortDir]);
 
   // Fecha dropdown de ações ao clicar fora
   useEffect(() => {
@@ -420,20 +388,26 @@ const MonitorEntregas = () => {
             <table className="w-full">
               <thead className="bg-gray-100 border-b border-gray-300">
                 <tr>
-                  <th onClick={() => handleSort('deliveryNumber')} className={`px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer select-none`}>
-                    Número {sort.by === 'deliveryNumber' ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                    <button onClick={() => { const dir = sortBy === 'deliveryNumber' && sortDir === 'asc' ? 'desc' : 'asc'; setSortBy('deliveryNumber'); setSortDir(dir); }} className="flex items-center gap-2">
+                      Número
+                      {sortBy === 'deliveryNumber' && (sortDir === 'asc' ? '↑' : '↓')}
+                    </button>
                   </th>
-                  <th onClick={() => handleSort('userName')} className={`px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer select-none`}>
-                    Contratado {sort.by === 'userName' ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                    Contratado
                   </th>
-                  <th onClick={() => handleSort('driverName')} className={`px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer select-none`}>
-                    Motorista {sort.by === 'driverName' ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                    Motorista
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                     Status
                   </th>
-                  <th onClick={() => handleSort('createdAt')} className={`px-4 py-3 text-left text-sm font-semibold text-gray-700 cursor-pointer select-none`}>
-                    Data {sort.by === 'createdAt' ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                    <button onClick={() => { const dir = sortBy === 'createdAt' && sortDir === 'asc' ? 'desc' : 'asc'; setSortBy('createdAt'); setSortDir(dir); }} className="flex items-center gap-2">
+                      Data
+                      {sortBy === 'createdAt' && (sortDir === 'asc' ? '↑' : '↓')}
+                    </button>
                   </th>
                   <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
                     Documentos
@@ -492,15 +466,11 @@ const MonitorEntregas = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              const id = openMenuId === delivery._id ? null : delivery._id;
-                              if (id) {
-                                // Decide if menu should open upwards when near bottom
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                const spaceBelow = window.innerHeight - rect.bottom;
-                                const estimatedMenuHeight = 150;
-                                setOpenMenuUp(spaceBelow < estimatedMenuHeight);
-                              }
-                              setOpenMenuId(id);
+                              const btnRect = e.currentTarget.getBoundingClientRect();
+                              const spaceBelow = window.innerHeight - btnRect.bottom;
+                              const openUp = spaceBelow < 180; // arbitrary threshold
+                              setOpenMenuUp(openUp);
+                              setOpenMenuId(openMenuId === delivery._id ? null : delivery._id);
                             }}
                             className="inline-flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 text-gray-700 transition"
                             aria-haspopup="true"
@@ -511,7 +481,7 @@ const MonitorEntregas = () => {
                           </button>
 
                           {openMenuId === delivery._id && (
-                            <div className={`origin-top-right absolute right-0 ${openMenuUp ? 'bottom-full mb-2' : 'top-full mt-2'} w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50`}>
+                            <div className={`${openMenuUp ? 'origin-bottom-right absolute right-0 mb-2 bottom-full' : 'origin-top-right absolute right-0 mt-2'} w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50`}>
                               <div className="py-1">
                                 <button
                                   onClick={() => { setSelectedDelivery(delivery); setOpenMenuId(null); }}
