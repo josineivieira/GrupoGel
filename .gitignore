@@ -19,5 +19,10 @@ frontend/.env.local
 # Build artifacts
 frontend/build/
 
+# Backend data & uploads (don't commit large binaries)
+backend/uploads/
+backend/data/
+backend/src/uploads/
+
 # Logs
 server.log
