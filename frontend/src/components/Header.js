@@ -67,16 +67,6 @@ const Header = () => {
 
           {/* City chip removed: selection happens at login. */}
 
-          {/* Quick logout button */}
-          <button
-            onClick={handleLogout}
-            className="h-10 w-10 grid place-items-center rounded-xl bg-white/10 border border-white/15 hover:bg-white/15 active:scale-95 transition"
-            aria-label="Sair"
-            title="Sair"
-          >
-            <FaSignOutAlt className="text-lg" />
-          </button>
-
           {/* Botão menu (clean, sem ficar grandão) */}
           <button
             onClick={() => setMenuOpen(true)}
@@ -119,20 +109,21 @@ const Header = () => {
             </div>
 
             <div className="p-3 space-y-2">
+<div className="flex gap-2">
               <button
-  onClick={() => navigate('/home')}
-  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl
-             bg-gray-50 hover:bg-gray-100
-             border border-gray-200
-             transition text-left font-semibold"
->
-  <FaHome className="text-emerald-600" />
-  Início
-</button>
+                onClick={() => navigate('/home')}
+                className="flex-1 flex items-center gap-3 px-4 py-3 rounded-2xl
+                           bg-gray-50 hover:bg-gray-100
+                           border border-gray-200
+                           transition text-left font-semibold"
+              >
+                <FaHome className="text-emerald-600" />
+                Início
+              </button>
 
               <button
                 onClick={() => { setMenuOpen(false); navigate('/profile'); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl
+                className="flex-1 flex items-center gap-3 px-4 py-3 rounded-2xl
                            bg-gray-50 hover:bg-gray-100
                            border border-gray-200
                            transition text-left font-semibold"
@@ -140,6 +131,18 @@ const Header = () => {
                 <FaUser className="text-purple-600" />
                 Ajustes
               </button>
+
+              <button
+                onClick={() => { setMenuOpen(false); handleLogout(); }}
+                className="flex-1 flex items-center gap-3 px-4 py-3 rounded-2xl
+                           bg-gray-50 hover:bg-gray-100
+                           border border-gray-200
+                           transition text-left font-semibold"
+              >
+                <FaSignOutAlt className="text-rose-600" />
+                Sair
+              </button>
+            </div>
 
             </div>
 
