@@ -6,22 +6,49 @@ const path = require("path");
 const fs = require("fs");
 
 // =======================
-// Upload config
+// Upload config (disk by default, memory for S3)
 // =======================
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Dinâmico por cidade
-    const dir = path.join(__dirname, "../uploads", req.city || 'manaus');
-    fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    // Nome será ajustado no handler
-    cb(null, file.originalname);
-  }
-});
+const useS3 = !!process.env.S3_BUCKET;
+let upload;
+if (useS3) {
+  console.log('✓ S3 configured: using memoryStorage for multer');
+  upload = multer({ storage: multer.memoryStorage() });
+} else {
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      // Dinâmico por cidade
+      const dir = path.join(__dirname, "../uploads", req.city || 'manaus');
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      // Nome será ajustado no handler
+      cb(null, file.originalname);
+    }
+  });
+  upload = multer({ storage });
+}
 
-const upload = multer({ storage });
+const s3 = useS3 ? require('../storage/s3') : null;
+
+// Helper to normalize db (works with sync mockdb or async mongo adapter)
+async function getDb(req) {
+  const db = req.mockdb;
+  if (!db) return db;
+  // If the db methods already return promises, wrap them to await; otherwise still behave synchronously
+  const wrapper = {};
+  const methods = ['find','findOne','findById','create','updateOne','deleteOne'];
+  methods.forEach(m => {
+    if (typeof db[m] === 'function') {
+      wrapper[m] = async (...args) => {
+        const res = db[m](...args);
+        if (res && typeof res.then === 'function') return await res;
+        return res;
+      };
+    }
+  });
+  return wrapper;
+}
 
 // =======================
 // Criar entrega
@@ -29,7 +56,7 @@ const upload = multer({ storage });
 // =======================
 router.post("/", auth, async (req, res) => {
   try {
-    const db = req.mockdb;
+    const db = await getDb(req);
     const city = req.city || 'manaus';
     const { deliveryNumber, vehiclePlate, observations, driverName } = req.body;
 
@@ -39,9 +66,9 @@ router.post("/", auth, async (req, res) => {
       return res.status(400).json({ message: "Número da entrega obrigatório" });
     }
 
-    const driver = db.findById("drivers", req.user.id);
+    const driver = await db.findById("drivers", req.user.id);
 
-    const delivery = db.create("deliveries", {
+    const delivery = await db.create("deliveries", {
       deliveryNumber,
       vehiclePlate,
       observations,
@@ -65,26 +92,33 @@ router.post("/", auth, async (req, res) => {
 // GET /api/deliveries
 // =======================
 router.get("/", auth, async (req, res) => {
-  const db = req.mockdb;
-  const { status, q } = req.query;
-  const query = { userId: req.user.id };
-  
-  if (status && status !== 'all') {
-    query.status = status;
-  }
+  try {
+    const db = await getDb(req);
+    const { status, q } = req.query;
+    const query = { userId: req.user.id };
+    
+    if (status && status !== 'all') {
+      query.status = status;
+    }
 
-  // Support free-text search across deliveryNumber, driverName and vehiclePlate
-  if (q && String(q).trim() !== '') {
-    const term = String(q).trim();
-    query.$or = [
-      { deliveryNumber: { $regex: term } },
-      { driverName: { $regex: term } },
-      { vehiclePlate: { $regex: term } }
-    ];
+    // Support free-text search across deliveryNumber, driverName and vehiclePlate
+    if (q && String(q).trim() !== '') {
+      const term = String(q).trim();
+      query.$or = [
+        { deliveryNumber: { $regex: term } },
+        { driverName: { $regex: term } },
+        { vehiclePlate: { $regex: term } }
+      ];
+    }
+    
+    let deliveries = await db.find("deliveries", query);
+    // Ensure array and sort by createdAt desc
+    deliveries = (deliveries || []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.json({ deliveries });
+  } catch (err) {
+    console.error('Error fetching deliveries', err);
+    res.status(500).json({ message: 'Erro ao buscar entregas' });
   }
-  
-  const deliveries = db.find("deliveries", query).sort((a, b) => b.createdAt - a.createdAt);
-  res.json({ deliveries });
 });
 
 // =======================
@@ -92,10 +126,15 @@ router.get("/", auth, async (req, res) => {
 // GET /api/deliveries/:id
 // =======================
 router.get("/:id", auth, async (req, res) => {
-  const db = req.mockdb;
-  const delivery = db.findById("deliveries", req.params.id);
-  if (!delivery) return res.status(404).json({ message: "Entrega não encontrada" });
-  res.json({ delivery });
+  try {
+    const db = await getDb(req);
+    const delivery = await db.findById("deliveries", req.params.id);
+    if (!delivery) return res.status(404).json({ message: "Entrega não encontrada" });
+    res.json({ delivery });
+  } catch (err) {
+    console.error('Error fetching delivery', err);
+    res.status(500).json({ message: 'Erro ao buscar entrega' });
+  }
 });
 
 // =======================
@@ -106,8 +145,8 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
   try {
     const { id, type } = req.params;
 
-    const db = req.mockdb;
-    const delivery = db.findById("deliveries", id);
+    const db = await getDb(req);
+    const delivery = await db.findById("deliveries", id);
     if (!delivery) return res.status(404).json({ message: "Entrega não encontrada" });
 
     // Mapeia nomes amigáveis para abreviaturas
@@ -142,23 +181,41 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
     // Processa arquivos enviados
     const savedPaths = [];
     if (req.files && req.files.length) {
-      req.files.forEach((file, idx) => {
-        const originalExt = path.extname(file.originalname) || ".jpg";
-        const finalFilename = `${baseName}_${Date.now()}_${idx}${originalExt}`;
-        const finalPath = path.join(containerDir, finalFilename);
-        const tempPath = file.path;
-        fs.renameSync(tempPath, finalPath);
-        const relativePath = path.join(containerFolder, finalFilename).replace(/\\/g, "/");
-        savedPaths.push(relativePath);
-      });
+      // If we are using S3, files are in memory (buffer)
+      if (useS3 && s3) {
+        for (let idx = 0; idx < req.files.length; idx++) {
+          const file = req.files[idx];
+          const originalExt = path.extname(file.originalname) || '.jpg';
+          const finalFilename = `${baseName}_${Date.now()}_${idx}${originalExt}`;
+          const key = `${city}/${containerFolder}/${finalFilename}`.replace(/\\/g, '/');
+          try {
+            const url = await s3.uploadBuffer(file.buffer, key, file.mimetype);
+            savedPaths.push(url);
+          } catch (err) {
+            console.error('S3 upload failed for', file.originalname, err);
+          }
+        }
 
-      docs[type] = (docs[type] || []).concat(savedPaths);
-      const db = req.mockdb;
-      db.updateOne("deliveries", { _id: id }, { documents: docs });
+        docs[type] = (docs[type] || []).concat(savedPaths);
+        await db.updateOne("deliveries", { _id: id }, { documents: docs });
+      } else {
+        req.files.forEach((file, idx) => {
+          const originalExt = path.extname(file.originalname) || ".jpg";
+          const finalFilename = `${baseName}_${Date.now()}_${idx}${originalExt}`;
+          const finalPath = path.join(containerDir, finalFilename);
+          const tempPath = file.path;
+          fs.renameSync(tempPath, finalPath);
+          const relativePath = path.join(containerFolder, finalFilename).replace(/\\/g, "/");
+          savedPaths.push(relativePath);
+        });
+
+        docs[type] = (docs[type] || []).concat(savedPaths);
+        await db.updateOne("deliveries", { _id: id }, { documents: docs });
+      }
     }
 
-    const db2 = req.mockdb;
-    res.json({ delivery: db2.findById("deliveries", id) });
+    const updated = await db.findById("deliveries", id);
+    res.json({ delivery: updated });
   } catch (err) {
     console.error("Erro ao upload:", err);
     res.status(500).json({ message: "Erro ao fazer upload", error: err.message });
@@ -172,8 +229,8 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
 router.delete('/:id/documents/:type/:index', auth, async (req, res) => {
   try {
     const { id, type, index } = req.params;
-    const db = req.mockdb;
-    const delivery = db.findById('deliveries', id);
+    const db = await getDb(req);
+    const delivery = await db.findById('deliveries', id);
     if (!delivery) return res.status(404).json({ message: 'Entrega não encontrada' });
 
     const docs = delivery.documents || {};
@@ -187,26 +244,53 @@ router.delete('/:id/documents/:type/:index', auth, async (req, res) => {
 
     // Se for string simples, só remove
     if (!Array.isArray(docEntry)) {
-      // remove file from disk
-      const filePath = path.join(__dirname, '../uploads', city, docEntry);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      const entry = docEntry;
+      // If S3 URL, attempt to delete by key
+      if (entry && entry.startsWith && entry.startsWith('http') && useS3) {
+        try {
+          // Expecting https://{bucket}.s3.{region}.amazonaws.com/{key}
+          const url = new URL(entry);
+          const key = url.pathname.replace(/^\//, '');
+          await s3.deleteKey(key);
+        } catch (err) {
+          console.warn('Failed to delete from S3:', err.message);
+        }
+      } else {
+        // remove file from disk
+        const filePath = path.join(__dirname, '../uploads', city, entry);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
+
       docs[type] = null;
-      db.updateOne('deliveries', { _id: id }, { documents: docs });
-      return res.json({ delivery: db.findById('deliveries', id) });
+      await db.updateOne('deliveries', { _id: id }, { documents: docs });
+      const updated = await db.findById('deliveries', id);
+      return res.json({ delivery: updated });
     }
 
     // Array: remove índice
     if (idx < 0 || idx >= docEntry.length) return res.status(400).json({ message: 'Índice inválido' });
 
     const removed = docEntry.splice(idx, 1)[0];
-    const filePath = path.join(__dirname, '../uploads', city, removed);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+    if (removed && removed.startsWith && removed.startsWith('http') && useS3) {
+      try {
+        const url = new URL(removed);
+        const key = url.pathname.replace(/^\//, '');
+        await s3.deleteKey(key);
+      } catch (err) {
+        console.warn('Failed to delete from S3:', err.message);
+      }
+    } else {
+      const filePath = path.join(__dirname, '../uploads', city, removed);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
 
     // Normaliza: se ficar vazio, define null
     docs[type] = docEntry.length ? docEntry : null;
-    db.updateOne('deliveries', { _id: id }, { documents: docs });
+    await db.updateOne('deliveries', { _id: id }, { documents: docs });
 
-    res.json({ delivery: db.findById('deliveries', id) });
+    const updated = await db.findById('deliveries', id);
+    res.json({ delivery: updated });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erro ao deletar documento' });

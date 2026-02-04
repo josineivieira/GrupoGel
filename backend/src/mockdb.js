@@ -277,6 +277,17 @@ const instances = {};
 
 function forCity(city = 'manaus') {
   const name = String(city || 'manaus').toLowerCase();
+
+  // If MONGO_URI is present, use MongoDB adapter (keeps same API surface)
+  if (process.env.MONGO_URI) {
+    try {
+      const mongoAdapter = require('./mongodbAdapter');
+      return mongoAdapter.forCity(name);
+    } catch (err) {
+      console.error('Error loading mongodb adapter, falling back to file mockdb:', err);
+    }
+  }
+
   if (!instances[name]) {
     // If BACKEND_DATA_DIR is provided, use it to store per-city DB files (persistent disk)
     const baseDir = process.env.BACKEND_DATA_DIR ? path.resolve(process.env.BACKEND_DATA_DIR) : path.join(__dirname, '..', 'data');

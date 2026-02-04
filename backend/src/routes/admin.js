@@ -9,6 +9,23 @@ const auth = require("../middleware/auth");
 
 const router = express.Router();
 
+// Helper to normalize db calls (sync mockdb or async mongo adapter)
+async function getDb(req) {
+  const db = req.mockdb || require('../mockdb');
+  const wrapper = {};
+  const methods = ['find','findOne','findById','create','updateOne','deleteOne'];
+  methods.forEach(m => {
+    if (typeof db[m] === 'function') {
+      wrapper[m] = async (...args) => {
+        const res = db[m](...args);
+        if (res && typeof res.then === 'function') return await res;
+        return res;
+      };
+    }
+  });
+  return wrapper;
+}
+
 function onlyAdmin(req, res, next) {
   const role = req.user?.role || "operacao";
   if (role !== "admin" && role !== "gestor") {
@@ -23,12 +40,12 @@ function onlyAdmin(req, res, next) {
  */
 router.get("/statistics", auth, onlyAdmin, async (req, res) => {
   try {
-    const db = req.mockdb;
-    const deliveries = db.find("deliveries", {});
+    const db = await getDb(req);
+    const deliveries = await db.find("deliveries", {});
     
-    const totalDeliveries = deliveries.length;
-    const submitted = deliveries.filter(d => d.status === "submitted").length;
-    const pending = deliveries.filter(d => d.status === "pending").length;
+    const totalDeliveries = (deliveries || []).length;
+    const submitted = (deliveries || []).filter(d => d.status === "submitted").length;
+    const pending = (deliveries || []).filter(d => d.status === "pending").length;
     
     // Agrupa por transportadora (placa) - removendo espaços em branco
     // Agrupa por contratado (userName)
@@ -109,10 +126,11 @@ router.get("/deliveries", auth, onlyAdmin, async (req, res) => {
       ];
     }
 
-    // Busca inicialmente usando o mockdb (aplica filtros simples)
-    const db = req.mockdb;
-    let deliveries = db.find("deliveries", filter).sort((a, b) => b.createdAt - a.createdAt);
-    console.log('  → Após mockdb.find com filter:', JSON.stringify(filter), '- Retornou', deliveries.length, 'entregas');
+    // Busca inicialmente usando o db (mockdb ou mongo adapter)
+    const db = await getDb(req);
+    let deliveries = await db.find("deliveries", filter) || [];
+    deliveries = deliveries.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    console.log('  → Após db.find com filter:', JSON.stringify(filter), '- Retornou', deliveries.length, 'entregas');
 
     // Filtra por intervalo de datas se fornecido (formato YYYY-MM-DD)
     if (startDate || endDate) {
@@ -195,8 +213,8 @@ router.get("/deliveries", auth, onlyAdmin, async (req, res) => {
  */
 router.get("/deliveries/:id", auth, onlyAdmin, async (req, res) => {
   try {
-    const db = req.mockdb;
-    const delivery = db.findById("deliveries", req.params.id);
+    const db = await getDb(req);
+    const delivery = await db.findById("deliveries", req.params.id);
     if (!delivery) return res.status(404).json({ message: "Entrega não encontrada" });
     return res.json({ delivery });
   } catch (err) {
@@ -214,8 +232,8 @@ router.get("/deliveries/:id/documents/:documentType/download", auth, onlyAdmin, 
     const { id, documentType } = req.params;
 
     // Busca entrega
-    const db = req.mockdb;
-    const delivery = db.findById("deliveries", id);
+    const db = await getDb(req);
+    const delivery = await db.findById("deliveries", id);
     if (!delivery) {
       return res.status(404).json({ message: "Entrega não encontrada" });
     }
@@ -283,8 +301,8 @@ router.get("/deliveries/:id/documents/:documentType/download", auth, onlyAdmin, 
 router.get('/deliveries/:id/documents/zip', auth, onlyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const db = req.mockdb;
-    const delivery = db.findById('deliveries', id);
+    const db = await getDb(req);
+    const delivery = await db.findById('deliveries', id);
     if (!delivery) return res.status(404).json({ message: 'Entrega não encontrada' });
 
     const docs = delivery.documents || {};
@@ -355,8 +373,8 @@ router.put("/deliveries/:id", auth, onlyAdmin, async (req, res) => {
     }
 
     // Busca entrega
-    const db = req.mockdb;
-    const delivery = db.findById("deliveries", req.params.id);
+    const db = await getDb(req);
+    const delivery = await db.findById("deliveries", req.params.id);
     console.log('🔍 Entrega encontrada:', delivery?.deliveryNumber);
     if (!delivery) {
       return res.status(404).json({ message: "Entrega não encontrada" });
@@ -374,7 +392,7 @@ router.put("/deliveries/:id", auth, onlyAdmin, async (req, res) => {
 
     console.log('🔄 Updates a fazer:', updates);
 
-    const updated = db.updateOne("deliveries", { _id: id }, updates);
+    const updated = await db.updateOne("deliveries", { _id: id }, updates);
     console.log('✅ Atualizado:', updated?.deliveryNumber);
     if (!updated) {
       return res.status(500).json({ message: "Erro ao atualizar entrega" });
@@ -396,14 +414,14 @@ router.delete("/deliveries/:id", auth, onlyAdmin, async (req, res) => {
     const { id } = req.params;
 
     // Busca entrega
-    const delivery = mockdb.findById("deliveries", id);
+    const db = await getDb(req);
+    const delivery = await db.findById("deliveries", id);
     if (!delivery) {
       return res.status(404).json({ message: "Entrega não encontrada" });
     }
 
     // Deleta entrega do banco
-    const db = req.mockdb;
-    const deleted = db.deleteOne("deliveries", { _id: id });
+    const deleted = await db.deleteOne("deliveries", { _id: id });
     if (!deleted) {
       return res.status(500).json({ message: "Erro ao deletar entrega" });
     }
@@ -421,8 +439,8 @@ router.delete("/deliveries/:id", auth, onlyAdmin, async (req, res) => {
  */
 router.get("/users", auth, onlyAdmin, async (req, res) => {
   try {
-    const db = req.mockdb;
-    const users = db.find("drivers", {});
+    const db = await getDb(req);
+    const users = await db.find("drivers", {}) || [];
     const usersWithoutPasswords = users.map(u => ({
       _id: u._id,
       username: u.username,
@@ -454,9 +472,9 @@ router.post("/users", auth, onlyAdmin, async (req, res) => {
     const normalizedEmail = String(email).toLowerCase();
 
     // Verifica se usuário existe (por username ou email)
-    const db = req.mockdb;
-    const existing = db.find('drivers', { $or: [{ username: normalizedUsername }, { email: normalizedEmail }] });
-    if (existing.length > 0) {
+    const db = await getDb(req);
+    const existing = await db.find('drivers', { $or: [{ username: normalizedUsername }, { email: normalizedEmail }] });
+    if (existing && existing.length > 0) {
       return res.status(400).json({ message: "Usuário já existe" });
     }
 
@@ -477,8 +495,8 @@ router.post("/users", auth, onlyAdmin, async (req, res) => {
       createdAt: new Date()
     };
 
-    // Use API do mockdb para inserir (mantém consistência)
-    const created = db.create('drivers', newUser);
+    // Use API do DB (mockdb or mongo adapter) to insert
+    const created = await db.create('drivers', newUser);
     console.log('➕ Novo usuário criado (sem senha no log):', { _id: created._id, username: created.username, email: created.email, role: created.role });
 
     return res.json({ 
@@ -507,8 +525,8 @@ router.put("/users/:id", auth, onlyAdmin, async (req, res) => {
     const { id } = req.params;
     const { email, name, role } = req.body;
 
-    const db = req.mockdb;
-    const user = db.findById("drivers", id);
+    const db = await getDb(req);
+    const user = await db.findById("drivers", id);
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -521,7 +539,7 @@ router.put("/users/:id", auth, onlyAdmin, async (req, res) => {
     }
     if (role) updates.role = role;
 
-    db.updateOne("drivers", { _id: id }, updates);
+    await db.updateOne("drivers", { _id: id }, updates);
 
     return res.json({ 
       success: true, 
@@ -541,13 +559,13 @@ router.delete("/users/:id", auth, onlyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const db = req.mockdb;
-    const user = db.findById("drivers", id);
+    const db = await getDb(req);
+    const user = await db.findById("drivers", id);
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
 
-    db.deleteOne("drivers", { _id: id });
+    await db.deleteOne("drivers", { _id: id });
 
     return res.json({ 
       success: true, 
@@ -580,9 +598,9 @@ router.get('/programs', auth, onlyAdmin, async (req, res) => {
  */
 router.post('/programs', auth, onlyAdmin, async (req, res) => {
   try {
-    const db = req.mockdb;
+    const db = await getDb(req);
     const payload = req.body || {};
-    const program = db.create('programs', Object.assign({}, payload, { createdAt: new Date().toISOString(), createdBy: req.user.id }));
+    const program = await db.create('programs', Object.assign({}, payload, { createdAt: new Date().toISOString(), createdBy: req.user.id }));
     return res.json({ success: true, program });
   } catch (err) {
     console.error('Erro ao criar programação:', err);
@@ -621,7 +639,7 @@ function parseCsv(text) {
 
 router.post('/programs/import', auth, onlyAdmin, upload.single('file'), async (req, res) => {
   try {
-    const db = req.mockdb;
+    const db = await getDb(req);
 
     let csvText = null;
     if (req.file && req.file.path) {
@@ -638,10 +656,10 @@ router.post('/programs/import', auth, onlyAdmin, upload.single('file'), async (r
     if (parsed.error) return res.status(400).json({ message: parsed.error });
 
     const created = [];
-    parsed.rows.forEach(r => {
-      const program = db.create('programs', Object.assign({}, r, { createdAt: new Date().toISOString(), createdBy: req.user.id }));
+    for (const r of parsed.rows) {
+      const program = await db.create('programs', Object.assign({}, r, { createdAt: new Date().toISOString(), createdBy: req.user.id }));
       created.push(program);
-    });
+    }
 
     return res.json({ success: true, created });
   } catch (err) {
@@ -656,8 +674,8 @@ module.exports = router;
 // Use: GET /api/admin/debug/export-drivers
 router.get('/debug/export-drivers', auth, onlyAdmin, async (req, res) => {
   try {
-    const db = req.mockdb;
-    const drivers = db.find('drivers', {});
+    const db = await getDb(req);
+    const drivers = await db.find('drivers', {});
     const exportDir = path.join(__dirname, '../data/exports');
     if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
     const filename = `drivers-export-${Date.now()}.json`;

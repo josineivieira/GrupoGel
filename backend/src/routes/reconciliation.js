@@ -7,6 +7,23 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
+// Helper to normalize db interface (sync mockdb or async mongo adapter)
+async function getDb(req) {
+  const db = req.mockdb;
+  const wrapper = {};
+  const methods = ['find','findOne','findById','create','updateOne','deleteOne'];
+  methods.forEach(m => {
+    if (typeof db[m] === 'function') {
+      wrapper[m] = async (...args) => {
+        const res = db[m](...args);
+        if (res && typeof res.then === 'function') return await res;
+        return res;
+      };
+    }
+  });
+  return wrapper;
+}
+
 // Config multer para upload
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -71,8 +88,8 @@ router.post('/upload', auth, onlyAdmin, upload.single('file'), async (req, res) 
     console.log('✓ Arquivo parseado:', uploadedData.length, 'linhas');
 
     // Busca todas as entregas no sistema (usando DB da cidade selecionada)
-    const db = req.mockdb;
-    const systemDeliveries = db.find('deliveries', {});
+    const db = await getDb(req);
+    const systemDeliveries = await db.find('deliveries', {});
 
     // Comparação
     const results = {
@@ -80,11 +97,11 @@ router.post('/upload', auth, onlyAdmin, upload.single('file'), async (req, res) 
       notFound: [],   // Não encontradas
       statusDiff: [],   // Status diferente
       totalUploaded: uploadedData.length,
-      totalSystem: systemDeliveries.length
+      totalSystem: (systemDeliveries || []).length
     };
 
     uploadedData.forEach(uploaded => {
-      const system = systemDeliveries.find(d => d.deliveryNumber === uploaded.deliveryNumber);
+      const system = (systemDeliveries || []).find(d => d.deliveryNumber === uploaded.deliveryNumber);
       
       if (!system) {
         results.notFound.push({
@@ -117,7 +134,6 @@ router.post('/upload', auth, onlyAdmin, upload.single('file'), async (req, res) 
         }
       }
     });
-
     console.log('📊 Resultados:', { 
       found: results.found.length, 
       notFound: results.notFound.length, 
@@ -154,11 +170,11 @@ router.post('/apply', auth, onlyAdmin, async (req, res) => {
     console.log('🔄 Aplicando', updates.length, 'atualizações de status');
 
     const results = [];
-    const db = req.mockdb;
+    const db = await getDb(req);
     for (const update of updates) {
-      const delivery = db.findOne('deliveries', { deliveryNumber: update.deliveryNumber });
+      const delivery = await db.findOne('deliveries', { deliveryNumber: update.deliveryNumber });
       if (delivery) {
-        const updated = db.updateOne('deliveries', { _id: delivery._id }, {
+        const updated = await db.updateOne('deliveries', { _id: delivery._id }, {
           status: update.newStatus,
           reconciliationAppliedAt: new Date().toISOString(),
           reconciliationNote: 'Status atualizado via reconciliação de planilha'

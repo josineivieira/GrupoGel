@@ -128,12 +128,23 @@ const PORT = process.env.PORT || 3000;
 
 // NOTE: Single listen handled by startServer() below to ensure binding to 0.0.0.0 and avoid duplicate listens.
 
+const { connectIfNeeded } = require('./db/mongo');
+
 async function startServer() {
   try {
+    if (process.env.MONGO_URI) {
+      try {
+        await connectIfNeeded();
+        console.log('✓ Using MongoDB for persistence');
+      } catch (err) {
+        console.error('⚠️ Failed to connect to MongoDB:', err.message);
+      }
+    }
+
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`✓ Servidor rodando na porta ${PORT}`);
       console.log(`✓ API disponível em http://localhost:${PORT}/api`);
-      console.log(`✓ Usando banco de dados em memória (mock)`);
+      console.log(process.env.MONGO_URI ? '✓ Usando MongoDB como banco' : '✓ Usando banco de dados em memória (mock)');
       console.log(`\n✓ Credenciais de teste:`);
       console.log(`  • admin / admin123`);
       console.log(`  • motorista1 / driver123`);

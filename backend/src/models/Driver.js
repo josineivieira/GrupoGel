@@ -45,6 +45,11 @@ const driverSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  // Used during migration from mockdb: sha256 of password
+  legacyPasswordSha256: {
+    type: String,
+    default: null
   }
 });
 
