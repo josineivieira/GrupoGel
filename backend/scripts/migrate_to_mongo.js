@@ -70,8 +70,9 @@ async function main() {
       console.log('Delivery:', del.deliveryNumber);
       if (dryRun) continue;
 
+      // preserve original id in legacyId and let Mongo generate a new ObjectId
+      const originalId = del._id || del.id || null;
       const payload = {
-        _id: del._id, // preserve id so frontend references still work
         deliveryNumber: del.deliveryNumber,
         vehiclePlate: del.vehiclePlate,
         observations: del.observations,
@@ -80,11 +81,12 @@ async function main() {
         userName: del.userName,
         userEmail: del.userEmail || null,
         userId: null,
-        documents: del.documents || {},
+        documents: {},
         createdAt: del.createdAt ? new Date(del.createdAt) : undefined,
         updatedAt: del.updatedAt ? new Date(del.updatedAt) : undefined,
         submittedAt: del.submittedAt ? new Date(del.submittedAt) : undefined,
-        city: del.city || city
+        city: del.city || city,
+        legacyId: originalId
       };
 
       // Try to find userId by username/email mapping
@@ -95,9 +97,9 @@ async function main() {
         if (possible) payload.userId = possible._id;
       }
 
-      // Transfer files to S3 if configured
-      if (payload.documents && Object.keys(payload.documents).length) {
-        for (const [type, val] of Object.entries(payload.documents)) {
+      // Transfer files to S3 if configured. Normalize arrays to comma-separated strings to match current schema.
+      if (del.documents && Object.keys(del.documents).length) {
+        for (const [type, val] of Object.entries(del.documents)) {
           if (!val) continue;
           if (Array.isArray(val)) {
             const arr = [];
@@ -116,7 +118,8 @@ async function main() {
                 arr.push(rel);
               }
             }
-            payload.documents[type] = arr;
+            // store as comma-separated string (keeps compatibility with current Delivery schema)
+            payload.documents[type] = arr.join(',');
           } else {
             const rel = val;
             const fullPath = path.join(uploadsRoot, city, rel);
@@ -129,9 +132,18 @@ async function main() {
               } catch (err) {
                 console.error('S3 upload error:', err);
               }
+            } else {
+              payload.documents[type] = rel;
             }
           }
         }
+      }
+
+      // Skip if delivery already exists (by legacyId or deliveryNumber)
+      const already = await Delivery.findOne({ $or: [{ legacyId: originalId }, { deliveryNumber: del.deliveryNumber }] }).exec();
+      if (already) {
+        console.log('  - delivery exists, skipping');
+        continue;
       }
 
       // Insert delivery

@@ -11,8 +11,20 @@ const documentNames = {
   retiradaCheio: 'RETIRADA_CHEIO'
 };
 
-// Create uploads base directory
-const uploadsBase = path.join(__dirname, '../../uploads');
+// Create uploads base directory (supports persistent directory via BACKEND_UPLOADS_DIR)
+const uploadsBase = process.env.BACKEND_UPLOADS_DIR ? path.resolve(process.env.BACKEND_UPLOADS_DIR) : path.join(__dirname, '../../uploads');
+
+// Ensure BACKEND_UPLOADS_DIR exists when provided
+if (process.env.BACKEND_UPLOADS_DIR) {
+  ;(async () => {
+    try {
+      await fs.mkdir(uploadsBase, { recursive: true });
+      console.log('✓ Using BACKEND_UPLOADS_DIR for uploads:', uploadsBase);
+    } catch (err) {
+      console.error('⚠️ Error ensuring BACKEND_UPLOADS_DIR exists:', err);
+    }
+  })();
+}
 
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {

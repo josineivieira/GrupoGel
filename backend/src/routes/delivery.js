@@ -30,6 +30,7 @@ if (useS3) {
 }
 
 const s3 = useS3 ? require('../storage/s3') : null;
+const { normalizeDeliveryForResponse } = require('../utils/storageUtils');
 
 // Helper to normalize db (works with sync mockdb or async mongo adapter)
 async function getDb(req) {
@@ -114,6 +115,8 @@ router.get("/", auth, async (req, res) => {
     let deliveries = await db.find("deliveries", query);
     // Ensure array and sort by createdAt desc
     deliveries = (deliveries || []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    // Normalize documents for response
+    deliveries = deliveries.map(d => normalizeDeliveryForResponse(d));
     res.json({ deliveries });
   } catch (err) {
     console.error('Error fetching deliveries', err);
@@ -130,7 +133,7 @@ router.get("/:id", auth, async (req, res) => {
     const db = await getDb(req);
     const delivery = await db.findById("deliveries", req.params.id);
     if (!delivery) return res.status(404).json({ message: "Entrega não encontrada" });
-    res.json({ delivery });
+    res.json({ delivery: normalizeDeliveryForResponse(delivery) });
   } catch (err) {
     console.error('Error fetching delivery', err);
     res.status(500).json({ message: 'Erro ao buscar entrega' });
@@ -172,7 +175,7 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
     // Cria pasta se não existir
     fs.mkdirSync(containerDir, { recursive: true });
 
-    // Normaliza docs existentes para array
+    // Normaliza docs existentes para array (runtime)
     const docs = delivery.documents || {};
     if (docs[type] && !Array.isArray(docs[type])) {
       docs[type] = [docs[type]];
@@ -197,7 +200,12 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
         }
 
         docs[type] = (docs[type] || []).concat(savedPaths);
-        await db.updateOne("deliveries", { _id: id }, { documents: docs });
+        // For Mongo compatibility, store as comma-separated string
+        const normalizedDocs = {};
+        for (const [k, v] of Object.entries(docs)) {
+          normalizedDocs[k] = Array.isArray(v) ? v.join(',') : v;
+        }
+        await db.updateOne("deliveries", { _id: id }, { documents: normalizedDocs });
       } else {
         req.files.forEach((file, idx) => {
           const originalExt = path.extname(file.originalname) || ".jpg";
@@ -210,12 +218,17 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
         });
 
         docs[type] = (docs[type] || []).concat(savedPaths);
-        await db.updateOne("deliveries", { _id: id }, { documents: docs });
+        // For Mongo compatibility, store as comma-separated string
+        const normalizedDocs = {};
+        for (const [k, v] of Object.entries(docs)) {
+          normalizedDocs[k] = Array.isArray(v) ? v.join(',') : v;
+        }
+        await db.updateOne("deliveries", { _id: id }, { documents: normalizedDocs });
       }
     }
 
     const updated = await db.findById("deliveries", id);
-    res.json({ delivery: updated });
+    res.json({ delivery: normalizeDeliveryForResponse(updated) });
   } catch (err) {
     console.error("Erro ao upload:", err);
     res.status(500).json({ message: "Erro ao fazer upload", error: err.message });
@@ -345,17 +358,32 @@ router.post("/:id/submit", auth, async (req, res) => {
 // Deletar rascunho
 // DELETE /api/deliveries/:id
 // =======================
+const { deleteDeliveryFiles, normalizeEntries } = require('../utils/storageUtils');
+
 router.delete("/:id", auth, async (req, res) => {
-  const db = req.mockdb;
-  const delivery = db.findById("deliveries", req.params.id);
-  if (!delivery) return res.status(404).json({ message: "Entrega não encontrada" });
+  try {
+    const db = req.mockdb;
+    const delivery = await db.findById("deliveries", req.params.id);
+    if (!delivery) return res.status(404).json({ message: "Entrega não encontrada" });
 
-  if (delivery.status !== "pending") {
-    return res.status(400).json({ message: "Entrega enviada não pode ser deletada" });
+    if (delivery.status !== "pending") {
+      return res.status(400).json({ message: "Entrega enviada não pode ser deletada" });
+    }
+
+    // Remove associated files from disk/S3
+    try {
+      const removed = await deleteDeliveryFiles(delivery);
+      console.log('🗑️ Removed files for delivery', req.params.id, removed);
+    } catch (err) {
+      console.warn('⚠️ Error while removing delivery files:', err.message || err);
+    }
+
+    await db.deleteOne("deliveries", { _id: req.params.id });
+    return res.json({ message: "Entrega deletada" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Erro ao deletar entrega' });
   }
-
-  db.deleteOne("deliveries", { _id: req.params.id });
-  res.json({ message: "Entrega deletada" });
 });
 
 module.exports = router;

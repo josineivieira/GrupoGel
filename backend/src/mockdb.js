@@ -298,7 +298,18 @@ function forCity(city = 'manaus') {
   return instances[name];
 }
 
-// Default export (backwards compatible)
-const defaultDb = forCity('manaus');
-module.exports = defaultDb;
+// Export forCity
 module.exports.forCity = forCity;
+
+// Default lazy proxy: delegate to current forCity('manaus') implementation at call time
+const defaultProxy = {
+  find: (...args) => forCity('manaus').find(...args),
+  findOne: (...args) => forCity('manaus').findOne(...args),
+  findById: (...args) => forCity('manaus').findById(...args),
+  create: (...args) => forCity('manaus').create(...args),
+  updateOne: (...args) => forCity('manaus').updateOne(...args),
+  deleteOne: (...args) => forCity('manaus').deleteOne(...args),
+  forCity
+};
+
+module.exports = defaultProxy;

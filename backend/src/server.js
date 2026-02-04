@@ -50,7 +50,39 @@ app.use((req, res, next) => {
 app.use(require('./middleware/city'));
 
 // ✅ Serve uploads (para abrir imagens no navegador)
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+const staticUploadsPath = process.env.BACKEND_UPLOADS_DIR ? path.resolve(process.env.BACKEND_UPLOADS_DIR) : path.join(__dirname, '../uploads');
+console.log('✓ Serving uploads from:', staticUploadsPath);
+app.use('/uploads', express.static(staticUploadsPath));
+
+// If BACKEND_UPLOADS_DIR is set, try to migrate existing repo uploads into persistent location (first-run)
+if (process.env.BACKEND_UPLOADS_DIR) {
+  try {
+    const repoUploads = path.join(__dirname, '../uploads');
+    const persistent = path.resolve(process.env.BACKEND_UPLOADS_DIR);
+    if (!fs.existsSync(persistent)) fs.mkdirSync(persistent, { recursive: true });
+
+    const persistentHasFiles = fs.existsSync(persistent) && fs.readdirSync(persistent).length > 0;
+    // Only move if persistent is empty and repoUploads has content
+    if (!persistentHasFiles && fs.existsSync(repoUploads)) {
+      console.log('⤴️ Migrating existing repo uploads to BACKEND_UPLOADS_DIR...');
+      const entries = fs.readdirSync(repoUploads);
+      for (const e of entries) {
+        const src = path.join(repoUploads, e);
+        const dest = path.join(persistent, e);
+        try {
+          fs.renameSync(src, dest);
+        } catch (err) {
+          console.warn('⚠️ Failed to move', src, '->', dest, ':', err.message);
+        }
+      }
+      // attempt to remove old uploads folder if empty
+      try { if (fs.existsSync(repoUploads) && fs.readdirSync(repoUploads).length === 0) fs.rmdirSync(repoUploads); } catch (e) {}
+      console.log('✓ Migration of uploads complete');
+    }
+  } catch (err) {
+    console.error('⚠️ Error during uploads migration:', err);
+  }
+}
 
 // Routes - ANTES do frontend catch-all
 app.use("/api/auth", require("./routes/auth"));

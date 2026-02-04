@@ -420,6 +420,15 @@ router.delete("/deliveries/:id", auth, onlyAdmin, async (req, res) => {
       return res.status(404).json({ message: "Entrega não encontrada" });
     }
 
+      // Remove associated files from disk/S3 before deleting
+    try {
+      const { deleteDeliveryFiles } = require('../utils/storageUtils');
+      const removed = await deleteDeliveryFiles(delivery);
+      console.log('🗑️ Admin removed files for delivery', id, removed);
+    } catch (err) {
+      console.warn('⚠️ Error while removing files for delivery (admin):', err.message || err);
+    }
+
     // Deleta entrega do banco
     const deleted = await db.deleteOne("deliveries", { _id: id });
     if (!deleted) {
@@ -665,6 +674,29 @@ router.post('/programs/import', auth, onlyAdmin, upload.single('file'), async (r
   } catch (err) {
     console.error('Erro ao importar programações:', err);
     return res.status(500).json({ message: 'Erro ao importar programações' });
+  }
+});
+
+// Persistence test endpoint - verifies DB connectivity and uploads disk writability
+router.get('/persistence/test', auth, onlyAdmin, async (req, res) => {
+  try {
+    const db = await getDb(req);
+    const total = (await db.find('deliveries', {}))?.length || 0;
+
+    // Attempt to write temp file to uploads dir
+    const base = process.env.BACKEND_UPLOADS_DIR ? path.resolve(process.env.BACKEND_UPLOADS_DIR) : path.join(__dirname, '..', 'uploads');
+    const testDir = path.join(base, 'persistence_test');
+    if (!fs.existsSync(testDir)) fs.mkdirSync(testDir, { recursive: true });
+    const testFile = path.join(testDir, `test-${Date.now()}.txt`);
+    fs.writeFileSync(testFile, 'ok');
+    const exists = fs.existsSync(testFile);
+    // cleanup
+    try { fs.unlinkSync(testFile); } catch(e){}
+
+    return res.json({ success: true, mongodbConnected: !!process.env.MONGO_URI, deliveriesCount: total, uploadsWritable: !!exists, uploadsPath: base });
+  } catch (err) {
+    console.error('Persistence test error:', err);
+    return res.status(500).json({ success: false, message: 'Persistence test failed', error: err.message });
   }
 });
 
