@@ -147,74 +147,112 @@ router.get("/:id", auth, async (req, res) => {
 router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res) => {
   try {
     const { id, type } = req.params;
-
+    console.log(`[UPLOAD] Iniciando upload para entrega ${id}, tipo ${type}`);
+    console.log(`[UPLOAD] req.files:`, req.files);
     const db = await getDb(req);
     const delivery = await db.findById("deliveries", id);
-    if (!delivery) return res.status(404).json({ message: "Entrega não encontrada" });
+    if (!delivery) {
+      console.error(`[UPLOAD] Entrega não encontrada: ${id}`);
+      return res.status(404).json({ message: "Entrega não encontrada" });
+    }
 
-    // Mapeia nomes amigáveis para abreviaturas
     const typeNames = {
-      // Manaus
       canhotNF: "NF",
       canhotCTE: "CTE",
       diarioBordo: "DIARIO",
       devolucaoVazio: "DEVOLUCAO",
       retiradaCheio: "RETIRADA",
-      // Itajaí
       ricAbastecimento: "RIC_AB",
       ricBaixa: "RIC_BAIXA",
       ricColeta: "RIC_COLETA",
       discoTacografo: "DISCO"
     };
-
     const baseName = typeNames[type] || type;
-    const containerFolder = delivery.deliveryNumber; // Numero do container é o número da entrega
+    const containerFolder = delivery.deliveryNumber;
     const city = req.city || 'manaus';
     const containerDir = path.join(__dirname, "../uploads", city, containerFolder);
+    try {
+      fs.mkdirSync(containerDir, { recursive: true });
+    } catch (err) {
+      console.error(`[UPLOAD] Falha ao criar pasta: ${containerDir}`, err);
+      return res.status(500).json({ message: "Erro ao criar pasta de upload", error: err.message });
+    }
 
-    // Cria pasta se não existir
-    fs.mkdirSync(containerDir, { recursive: true });
-
-    // Normaliza docs existentes para array (runtime)
     const docs = delivery.documents || {};
     if (docs[type] && !Array.isArray(docs[type])) {
       docs[type] = [docs[type]];
     }
 
-    // Processa arquivos enviados
     const savedDriveFiles = [];
-    const { uploadFileToDrive } = require("../storage/gdrive");
+    let uploadFileToDrive = null;
     try {
-      if (req.files && req.files.length) {
-        for (let idx = 0; idx < req.files.length; idx++) {
-          const file = req.files[idx];
-          const originalExt = path.extname(file.originalname) || ".jpg";
-          const finalFilename = `${baseName}_${Date.now()}_${idx}${originalExt}`;
+      uploadFileToDrive = require("../storage/gdrive").uploadFileToDrive;
+    } catch (err) {
+      console.warn('[UPLOAD] Google Drive module unavailable:', err && err.message ? err.message : err);
+    }
+
+    if (req.files && req.files.length) {
+      for (let idx = 0; idx < req.files.length; idx++) {
+        const file = req.files[idx];
+        const originalExt = path.extname(file.originalname) || ".jpg";
+        const finalFilename = `${baseName}_${Date.now()}_${idx}${originalExt}`;
+        console.log(`[UPLOAD] Processando arquivo: ${file.originalname}, destino: ${finalFilename}`);
+        if (typeof uploadFileToDrive === 'function') {
           try {
             const driveFile = await uploadFileToDrive(file.buffer || fs.readFileSync(file.path), finalFilename, file.mimetype);
             savedDriveFiles.push({ id: driveFile.id, name: finalFilename, link: driveFile.webViewLink || driveFile.webContentLink });
+            console.log(`[UPLOAD] Upload Google Drive OK: ${finalFilename}`);
           } catch (err) {
-            console.error("Google Drive upload failed for", file.originalname, err);
+            console.error(`[UPLOAD] Google Drive upload failed for ${file.originalname}:`, err);
+          }
+        } else {
+          try {
+            const dest = path.join(containerDir, finalFilename);
+            if (file.path && fs.existsSync(file.path)) {
+              fs.renameSync(file.path, dest);
+            } else if (file.buffer) {
+              fs.writeFileSync(dest, file.buffer);
+            } else {
+              console.warn(`[UPLOAD] No file data to save for ${file.originalname}`);
+              continue;
+            }
+            savedDriveFiles.push({ name: finalFilename, path: path.join(city, containerFolder, finalFilename) });
+            console.log(`[UPLOAD] Arquivo salvo localmente: ${finalFilename}`);
+          } catch (err) {
+            console.error(`[UPLOAD] Local save failed for ${file.originalname}:`, err);
           }
         }
-        docs[type] = (docs[type] || []).concat(savedDriveFiles);
-        // Para Mongo, salva como JSON string
-        const normalizedDocs = {};
-        for (const [k, v] of Object.entries(docs)) {
-          normalizedDocs[k] = Array.isArray(v) ? JSON.stringify(v) : v;
-        }
-        await db.updateOne("deliveries", { _id: id }, { documents: normalizedDocs });
       }
-      const updated = await db.findById("deliveries", id);
-      res.json({ delivery: normalizeDeliveryForResponse(updated) });
-    } catch (err) {
-      console.error("Erro ao upload:", err);
-      res.status(500).json({ message: "Erro ao fazer upload", error: err.message });
+
+      if (req.files.length > 0 && savedDriveFiles.length === 0) {
+        console.error('[UPLOAD] Nenhum arquivo foi salvo durante upload. Aborting.');
+        return res.status(500).json({ message: 'Erro ao fazer upload: nenhum arquivo salvo (verifique configuração de Google Drive ou permissão de pasta)' });
+      }
+
+      docs[type] = (docs[type] || []).concat(savedDriveFiles);
+      if (Array.isArray(docs[type]) && docs[type].length === 0) docs[type] = null;
+
+      const normalizedDocs = {};
+      for (const [k, v] of Object.entries(docs)) {
+        normalizedDocs[k] = Array.isArray(v) ? JSON.stringify(v) : v;
+      }
+      try {
+        await db.updateOne("deliveries", { _id: id }, { documents: normalizedDocs });
+      } catch (err) {
+        console.error(`[UPLOAD] Falha ao atualizar documentos no banco:`, err);
+        return res.status(500).json({ message: "Erro ao salvar documentos no banco", error: err.message });
+      }
+    } else {
+      console.warn('[UPLOAD] Nenhum arquivo recebido no upload.');
+      return res.status(400).json({ message: "Nenhum arquivo enviado" });
     }
+    const updated = await db.findById("deliveries", id);
+    res.json({ delivery: normalizeDeliveryForResponse(updated) });
   } catch (err) {
-    console.error("Erro ao upload:", err);
+    console.error("[UPLOAD] Erro geral ao upload:", err);
     res.status(500).json({ message: "Erro ao fazer upload", error: err.message });
   }
+}
 });
 
 // =======================
