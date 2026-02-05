@@ -211,8 +211,13 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
       console.error("Erro ao upload:", err);
       res.status(500).json({ message: "Erro ao fazer upload", error: err.message });
     }
-  // ...existing code...
-// Remove extra closing parenthesis here
+  } catch (err) {
+    console.error("Erro ao upload:", err);
+    res.status(500).json({ message: "Erro ao fazer upload", error: err.message });
+  }
+});
+
+// =======================
 // Deletar um documento específico por índice
 // DELETE /api/deliveries/:id/documents/:type/:index
 // =======================
@@ -222,6 +227,8 @@ router.delete('/:id/documents/:type/:index', auth, async (req, res) => {
     const db = await getDb(req);
     const delivery = await db.findById('deliveries', id);
     if (!delivery) return res.status(404).json({ message: 'Entrega não encontrada' });
+    
+    const docs = delivery.documents || {};
     const docEntry = docs[type];
 
     if (!docEntry) return res.status(404).json({ message: 'Documento não encontrado' });
