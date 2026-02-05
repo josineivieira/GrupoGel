@@ -244,49 +244,38 @@ router.get("/deliveries/:id/documents/:documentType/download", auth, onlyAdmin, 
       return res.status(404).json({ message: "Documento não encontrado para esta entrega" });
     }
 
-    // Verifica se documento existe fisicamente
-    let documentPath = delivery.documents[documentType];
-    if (Array.isArray(documentPath)) {
-      const idx = parseInt(req.query.index || '0', 10);
-      if (isNaN(idx) || idx < 0 || idx >= documentPath.length) {
-        return res.status(400).json({ message: 'Índice de documento inválido' });
-      }
-      documentPath = documentPath[idx];
+    // Busca documento no Google Drive
+    let documentEntry = delivery.documents[documentType];
+    let docArray;
+    try {
+      docArray = typeof documentEntry === 'string' ? JSON.parse(documentEntry) : documentEntry;
+    } catch (e) {
+      docArray = documentEntry;
     }
-
-    // Se for array, aceita query ?index=n para escolher qual baixar
-    if (Array.isArray(documentPath)) {
-      const idx = parseInt(req.query.index || '0', 10);
-      if (isNaN(idx) || idx < 0 || idx >= documentPath.length) {
-        return res.status(400).json({ message: 'Índice de documento inválido' });
-      }
-      documentPath = documentPath[idx];
+    if (!Array.isArray(docArray)) docArray = [docArray];
+    const idx = parseInt(req.query.index || '0', 10);
+    if (isNaN(idx) || idx < 0 || idx >= docArray.length) {
+      return res.status(400).json({ message: 'Índice de documento inválido' });
     }
-
-    // Monta caminhos possíveis (city-specific e root)
-    const city = delivery.city || req.city || 'manaus';
-    const cityPath = path.join(__dirname, "../uploads", city, documentPath);
-    const rootPath = path.join(__dirname, "../uploads", documentPath);
-
-    // Tenta fazer download do arquivo físico se existir
-    if (fs.existsSync(cityPath)) {
-      return res.download(cityPath);
+    const docInfo = docArray[idx];
+    if (!docInfo || !docInfo.id) {
+      return res.status(404).json({ message: 'Documento não encontrado no Google Drive' });
     }
-
-    if (fs.existsSync(rootPath)) {
-      return res.download(rootPath);
+    // Baixa do Google Drive
+    const { google } = require('googleapis');
+    const { getOAuth2Client } = require('../storage/gdrive');
+    const drive = google.drive({ version: 'v3', auth: getOAuth2Client() });
+    try {
+      const driveRes = await drive.files.get({
+        fileId: docInfo.id,
+        alt: 'media'
+      }, { responseType: 'stream' });
+      res.setHeader('Content-Disposition', `attachment; filename="${docInfo.name || (delivery.deliveryNumber + '_' + documentType + '.jpg')}"`);
+      driveRes.data.pipe(res);
+    } catch (err) {
+      console.error('Erro ao baixar do Google Drive:', err);
+      return res.status(500).json({ message: 'Erro ao baixar do Google Drive' });
     }
-
-    // Se arquivo não existe, retorna JPEG válido (1x1 pixel, cinza)
-    // Este é um JPEG real e válido que abre em qualquer visualizador
-    const mockJpegBuffer = Buffer.from(
-      "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8VAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=",
-      "base64"
-    );
-
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Content-Disposition', `attachment; filename="${delivery.deliveryNumber}_${documentType}.jpg"`);
-    res.send(mockJpegBuffer);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Erro ao fazer download" });

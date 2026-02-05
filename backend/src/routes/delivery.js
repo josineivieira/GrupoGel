@@ -188,48 +188,29 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
       if (useS3 && s3) {
         for (let idx = 0; idx < req.files.length; idx++) {
           const file = req.files[idx];
-          const originalExt = path.extname(file.originalname) || '.jpg';
-          const finalFilename = `${baseName}_${Date.now()}_${idx}${originalExt}`;
-          const key = `${city}/${containerFolder}/${finalFilename}`.replace(/\\/g, '/');
-          try {
-            const url = await s3.uploadBuffer(file.buffer, key, file.mimetype);
-            savedPaths.push(url);
-          } catch (err) {
-            console.error('S3 upload failed for', file.originalname, err);
+        // Processa arquivos enviados
+        const savedDriveFiles = [];
+        const { uploadFileToDrive } = require("../storage/gdrive");
+        if (req.files && req.files.length) {
+          for (let idx = 0; idx < req.files.length; idx++) {
+            const file = req.files[idx];
+            const originalExt = path.extname(file.originalname) || ".jpg";
+            const finalFilename = `${baseName}_${Date.now()}_${idx}${originalExt}`;
+            try {
+              const driveFile = await uploadFileToDrive(file.buffer || fs.readFileSync(file.path), finalFilename, file.mimetype);
+              savedDriveFiles.push({ id: driveFile.id, name: finalFilename, link: driveFile.webViewLink || driveFile.webContentLink });
+            } catch (err) {
+              console.error("Google Drive upload failed for", file.originalname, err);
+            }
           }
+          docs[type] = (docs[type] || []).concat(savedDriveFiles);
+          // Para Mongo, salva como JSON string
+          const normalizedDocs = {};
+          for (const [k, v] of Object.entries(docs)) {
+            normalizedDocs[k] = Array.isArray(v) ? JSON.stringify(v) : v;
+          }
+          await db.updateOne("deliveries", { _id: id }, { documents: normalizedDocs });
         }
-
-        docs[type] = (docs[type] || []).concat(savedPaths);
-        // For Mongo compatibility, store as comma-separated string
-        const normalizedDocs = {};
-        for (const [k, v] of Object.entries(docs)) {
-          normalizedDocs[k] = Array.isArray(v) ? v.join(',') : v;
-        }
-        await db.updateOne("deliveries", { _id: id }, { documents: normalizedDocs });
-      } else {
-        req.files.forEach((file, idx) => {
-          const originalExt = path.extname(file.originalname) || ".jpg";
-          const finalFilename = `${baseName}_${Date.now()}_${idx}${originalExt}`;
-          const finalPath = path.join(containerDir, finalFilename);
-          const tempPath = file.path;
-          fs.renameSync(tempPath, finalPath);
-          const relativePath = path.join(containerFolder, finalFilename).replace(/\\/g, "/");
-          savedPaths.push(relativePath);
-        });
-
-        docs[type] = (docs[type] || []).concat(savedPaths);
-        // For Mongo compatibility, store as comma-separated string
-        const normalizedDocs = {};
-        for (const [k, v] of Object.entries(docs)) {
-          normalizedDocs[k] = Array.isArray(v) ? v.join(',') : v;
-        }
-        await db.updateOne("deliveries", { _id: id }, { documents: normalizedDocs });
-      }
-    }
-
-    const updated = await db.findById("deliveries", id);
-    res.json({ delivery: normalizeDeliveryForResponse(updated) });
-  } catch (err) {
     console.error("Erro ao upload:", err);
     res.status(500).json({ message: "Erro ao fazer upload", error: err.message });
   }
