@@ -182,41 +182,37 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
     }
 
     // Processa arquivos enviados
-    const savedPaths = [];
-    if (req.files && req.files.length) {
-      // If we are using S3, files are in memory (buffer)
-      if (useS3 && s3) {
+    const savedDriveFiles = [];
+    const { uploadFileToDrive } = require("../storage/gdrive");
+    try {
+      if (req.files && req.files.length) {
         for (let idx = 0; idx < req.files.length; idx++) {
           const file = req.files[idx];
-        // Processa arquivos enviados
-        const savedDriveFiles = [];
-        const { uploadFileToDrive } = require("../storage/gdrive");
-        if (req.files && req.files.length) {
-          for (let idx = 0; idx < req.files.length; idx++) {
-            const file = req.files[idx];
-            const originalExt = path.extname(file.originalname) || ".jpg";
-            const finalFilename = `${baseName}_${Date.now()}_${idx}${originalExt}`;
-            try {
-              const driveFile = await uploadFileToDrive(file.buffer || fs.readFileSync(file.path), finalFilename, file.mimetype);
-              savedDriveFiles.push({ id: driveFile.id, name: finalFilename, link: driveFile.webViewLink || driveFile.webContentLink });
-            } catch (err) {
-              console.error("Google Drive upload failed for", file.originalname, err);
-            }
+          const originalExt = path.extname(file.originalname) || ".jpg";
+          const finalFilename = `${baseName}_${Date.now()}_${idx}${originalExt}`;
+          try {
+            const driveFile = await uploadFileToDrive(file.buffer || fs.readFileSync(file.path), finalFilename, file.mimetype);
+            savedDriveFiles.push({ id: driveFile.id, name: finalFilename, link: driveFile.webViewLink || driveFile.webContentLink });
+          } catch (err) {
+            console.error("Google Drive upload failed for", file.originalname, err);
           }
-          docs[type] = (docs[type] || []).concat(savedDriveFiles);
-          // Para Mongo, salva como JSON string
-          const normalizedDocs = {};
-          for (const [k, v] of Object.entries(docs)) {
-            normalizedDocs[k] = Array.isArray(v) ? JSON.stringify(v) : v;
-          }
-          await db.updateOne("deliveries", { _id: id }, { documents: normalizedDocs });
         }
-    console.error("Erro ao upload:", err);
-    res.status(500).json({ message: "Erro ao fazer upload", error: err.message });
-  }
-});
-
-// =======================
+        docs[type] = (docs[type] || []).concat(savedDriveFiles);
+        // Para Mongo, salva como JSON string
+        const normalizedDocs = {};
+        for (const [k, v] of Object.entries(docs)) {
+          normalizedDocs[k] = Array.isArray(v) ? JSON.stringify(v) : v;
+        }
+        await db.updateOne("deliveries", { _id: id }, { documents: normalizedDocs });
+      }
+      const updated = await db.findById("deliveries", id);
+      res.json({ delivery: normalizeDeliveryForResponse(updated) });
+    } catch (err) {
+      console.error("Erro ao upload:", err);
+      res.status(500).json({ message: "Erro ao fazer upload", error: err.message });
+    }
+  // ...existing code...
+// Remove extra closing parenthesis here
 // Deletar um documento específico por índice
 // DELETE /api/deliveries/:id/documents/:type/:index
 // =======================
@@ -226,8 +222,7 @@ router.delete('/:id/documents/:type/:index', auth, async (req, res) => {
     const db = await getDb(req);
     const delivery = await db.findById('deliveries', id);
     if (!delivery) return res.status(404).json({ message: 'Entrega não encontrada' });
-
-    const docs = delivery.documents || {};
+    }
     const docEntry = docs[type];
 
     if (!docEntry) return res.status(404).json({ message: 'Documento não encontrado' });
