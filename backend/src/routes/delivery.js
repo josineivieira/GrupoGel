@@ -222,7 +222,6 @@ router.delete('/:id/documents/:type/:index', auth, async (req, res) => {
     const db = await getDb(req);
     const delivery = await db.findById('deliveries', id);
     if (!delivery) return res.status(404).json({ message: 'Entrega não encontrada' });
-    }
     const docEntry = docs[type];
 
     if (!docEntry) return res.status(404).json({ message: 'Documento não encontrado' });
