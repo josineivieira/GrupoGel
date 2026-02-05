@@ -252,7 +252,6 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
     console.error("[UPLOAD] Erro geral ao upload:", err);
     res.status(500).json({ message: "Erro ao fazer upload", error: err.message });
   }
-}
 });
 
 // =======================
