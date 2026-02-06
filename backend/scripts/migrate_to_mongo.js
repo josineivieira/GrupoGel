@@ -13,9 +13,16 @@ async function main() {
   const dryRun = process.argv.includes('--dry-run');
   console.log('Migration started', { dryRun });
 
-  if (!process.env.MONGO_URI) {
-    console.error('MONGO_URI not provided. Aborting.');
+  // Support both MONGODB_URI (new) and MONGO_URI (legacy)
+  const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  if (!mongoUri) {
+    console.error('MONGODB_URI or MONGO_URI not provided. Aborting.');
     process.exit(1);
+  }
+
+  // Ensure MONGODB_URI is set for connectIfNeeded()
+  if (!process.env.MONGODB_URI && process.env.MONGO_URI) {
+    process.env.MONGODB_URI = process.env.MONGO_URI;
   }
 
   await connectIfNeeded();
