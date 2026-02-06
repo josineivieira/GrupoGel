@@ -104,9 +104,10 @@ router.get("/deliveries", auth, onlyAdmin, async (req, res) => {
     const { status, q, startDate, endDate } = req.query;
     console.log('📋 GET /admin/deliveries recebido com filtros:', { status, q, startDate, endDate });
     
-    // Debug: mostra total de entregas disponíveis
-    const allDeliveries = mockdb.find("deliveries", {});
-    console.log('  ℹ️  Total de entregas na DB:', allDeliveries.length);
+    // Debug: mostra total de entregas disponíveis (deve usar db com await, não mockdb direto)
+    const db = await getDb(req);
+    const allDeliveries = await db.find("deliveries", {});
+    console.log('  ℹ️  Total de entregas na DB:', allDeliveries ? allDeliveries.length : 0);
     
     const filter = {};
 
@@ -127,7 +128,7 @@ router.get("/deliveries", auth, onlyAdmin, async (req, res) => {
     }
 
     // Busca inicialmente usando o db (mockdb ou mongo adapter)
-    const db = await getDb(req);
+    // db já foi obtido no debug acima, não precisa obter novamente
     let deliveries = await db.find("deliveries", filter) || [];
     deliveries = deliveries.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     console.log('  → Após db.find com filter:', JSON.stringify(filter), '- Retornou', deliveries.length, 'entregas');
@@ -740,7 +741,7 @@ router.delete("/users/:id", auth, onlyAdmin, async (req, res) => {
 router.get('/programs', auth, onlyAdmin, async (req, res) => {
   try {
     const db = req.mockdb;
-    const programs = db.find('programs', {});
+    const programs = await db.find('programs', {});
     return res.json({ programs });
   } catch (err) {
     console.error('Erro ao listar programas:', err);

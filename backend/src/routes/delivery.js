@@ -391,15 +391,16 @@ router.post("/:id/submit", auth, async (req, res) => {
 
     // Store metadata about forced submit
     const updates = { status: 'submitted', submittedAt: new Date(), submissionObservation: String(observation).trim(), submissionForce: true, missingDocumentsAtSubmit: missingDocs };
-    db.updateOne("deliveries", { _id: req.params.id }, updates);
-
+    await db.updateOne("deliveries", { _id: req.params.id }, updates);
 
     console.log('  -> Submission forced saved for', req.params.id);
-    return res.json({ message: "Entrega enviada com sucesso (forçada)", delivery: db.findById('deliveries', req.params.id) });
+    const deliveryAfterUpdate = await db.findById('deliveries', req.params.id);
+    return res.json({ message: "Entrega enviada com sucesso (forçada)", delivery: deliveryAfterUpdate });
   } else {
     // No missing docs, mark as submitted
-    db.updateOne('deliveries', { _id: req.params.id }, { status: 'submitted', submittedAt: new Date() });
-    return res.json({ success: true, message: 'Entrega enviada com sucesso', delivery: db.findById('deliveries', req.params.id) });
+    await db.updateOne('deliveries', { _id: req.params.id }, { status: 'submitted', submittedAt: new Date() });
+    const deliveryAfterUpdate = await db.findById('deliveries', req.params.id);
+    return res.json({ success: true, message: 'Entrega enviada com sucesso', delivery: deliveryAfterUpdate });
   }
 });
 
