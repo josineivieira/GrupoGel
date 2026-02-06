@@ -16,6 +16,14 @@ function createAdapterForCity(city) {
   }
 
   // MongoDB está configurado, tenta usar com fallback em cada operação
+  // MAS nunca use MongoDB se ele estiver muito lento ou instável
+  const USE_MONGODB = false; // Desabilitar MongoDB temporariamente - usar MockDB com fallback
+  if (!USE_MONGODB) {
+    console.log(`[DB-FALLBACK] MongoDB desabilitado, usando MockDB puro para cidade: ${normalizedCity}`);
+    const mockdb = mockdbFactory.forCity ? mockdbFactory.forCity(normalizedCity) : mockdbFactory;
+    return mockdb;
+  }
+
   console.log(`[DB-FALLBACK] MONGODB_URI configurado, tentando MongoDB para cidade: ${normalizedCity}`);
   
   const mongodbAdapter = require('./mongodbAdapter');
