@@ -89,14 +89,46 @@ exports.login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Credenciais inválidas' });
     }
 
-    // Check password
-    const hashedPassword = hashPassword(password);
-    console.log('🔑 Password check:', { 
-      provided: hashedPassword.substring(0, 10) + '...',
-      stored: driver.password.substring(0, 10) + '...',
-      match: hashedPassword === driver.password
-    });
-    if (hashedPassword !== driver.password) {
+    // Check password: support legacy SHA256 (mockdb) and bcrypt (MongoDB)
+    const hashedSha256 = hashPassword(password);
+    let passwordMatch = false;
+
+    // 1) explicit legacy field
+    if (driver.legacyPasswordSha256) {
+      passwordMatch = (hashedSha256 === driver.legacyPasswordSha256);
+      if (passwordMatch) {
+        try {
+          const bcryptHash = await bcrypt.hash(password, 10);
+          await db.updateOne('drivers', { _id: driver._id }, { password: bcryptHash, legacyPasswordSha256: null });
+        } catch (e) {
+          console.warn('⚠️ Failed to migrate legacy password to bcrypt:', e && e.message ? e.message : e);
+        }
+      }
+    } else {
+      // 2) handle case where SHA256 was stored in `password` field (legacy mockdb)
+      const maybeLegacySha = typeof driver.password === 'string' && /^[0-9a-f]{64}$/i.test(driver.password);
+      if (maybeLegacySha) {
+        passwordMatch = (hashedSha256 === driver.password);
+        if (passwordMatch) {
+          try {
+            const bcryptHash = await bcrypt.hash(password, 10);
+            await db.updateOne('drivers', { _id: driver._id }, { password: bcryptHash, legacyPasswordSha256: null });
+          } catch (e) {
+            console.warn('⚠️ Failed to migrate legacy password-stored-in-password to bcrypt:', e && e.message ? e.message : e);
+          }
+        }
+      } else {
+        // 3) assume bcrypt
+        try {
+          passwordMatch = await bcrypt.compare(password, driver.password || '');
+        } catch (e) {
+          console.error('Error comparing bcrypt password:', e);
+        }
+      }
+    }
+
+    console.log('🔑 Password check:', { providedSha256: hashedSha256.substring(0,10)+'...', passwordMatch });
+    if (!passwordMatch) {
       console.log('❌ Password mismatch');
       return res.status(401).json({ success: false, message: 'Credenciais inválidas' });
     }
