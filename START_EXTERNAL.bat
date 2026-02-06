@@ -36,9 +36,9 @@ echo ═════════════════════════
 echo.
 echo 📌 Endereços:
 echo    🌐 Frontend Local:     http://localhost:3000
-echo    🌐 Frontend Celular:   http://192.168.1.3:3000
+echo    🌐 Frontend Celular:   http://localhost:3000
 echo    🔌 Backend Local:      http://localhost:5000/api
-echo    🔌 Backend Celular:    http://192.168.1.3:5000/api
+echo    🔌 Backend Celular:    http://localhost:5000/api
 echo.
 echo 🔐 Credenciais:
 echo    Motorista: motorista@example.com / senha123

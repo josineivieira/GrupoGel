@@ -16,8 +16,28 @@ try {
   console.warn('[CRED] Aviso: falha ao executar write-google-creds:', e && e.message ? e.message : e);
 }
 
-// Initialize mock database
+// Initialize mock database (used as fallback if MongoDB not configured)
 const mockdb = require('./mockdb');
+
+// ⚠️  DIAGNÓSTICO DE BANCO DE DADOS
+const dbMode = process.env.MONGODB_URI ? 'MongoDB' : 'MockDB (Em Memória)';
+console.log(`
+╔════════════════════════════════════════════════════════════════╗
+║                   🗄️  CONFIGURAÇÃO DE BANCO                    ║
+╠════════════════════════════════════════════════════════════════╣
+║  Modo: ${dbMode.padEnd(57)}║
+${process.env.MONGODB_URI ? '' : `║                                                                ║
+║  ⚠️  ATENÇÃO: MockDB não persiste após reinicializações!      ║
+║  Dados serão perdidos quando o servidor reiniciar.             ║
+║                                                                ║
+║  Para usar MongoDB em Render:                                 ║
+║  1. Vá em Render.com → seu serviço → Environment               ║
+║  2. Adicione variável: MONGODB_URI                             ║
+║  3. Valor: mongodb+srv://user:pass@cluster0...                ║
+║  4. Clique em Deploy                                          ║
+╚════════════════════════════════════════════════════════════════╝`}
+╚════════════════════════════════════════════════════════════════╝
+`);
 
 const app = express();
 

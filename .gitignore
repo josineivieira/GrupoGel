@@ -1,3 +1,7 @@
+backend/google-credentials.json
+backend/google-token.json
+google-credentials.json
+google-token.json
 node_modules
 # Generated artifacts and temporary files
 *.zip

@@ -1,22 +1,22 @@
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 
-const auth = (req, res, next) => {
+module.exports = function auth(req, res, next) {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const header = req.headers.authorization || "";
+    const token = header.startsWith("Bearer ") ? header.slice(7) : null;
 
     if (!token) {
-      return res.status(401).json({ success: false, message: 'Token não fornecido' });
+      return res.status(401).json({ message: "Token ausente" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || "dev_secret_change_me";
+    const decoded = jwt.verify(token, secret);
+
+    // payload esperado: { id, name, email, role }
     req.user = decoded;
+
     next();
-  } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ success: false, message: 'Token expirado' });
-    }
-    res.status(401).json({ success: false, message: 'Token inválido' });
+  } catch (err) {
+    return res.status(401).json({ message: "Token inválido" });
   }
 };
-
-module.exports = auth;

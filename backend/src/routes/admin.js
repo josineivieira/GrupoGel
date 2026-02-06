@@ -346,57 +346,159 @@ router.get("/deliveries/:id/documents/:documentType/download", auth, onlyAdmin, 
 router.get('/deliveries/:id/documents/zip', auth, onlyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(`[ZIP] Iniciando geração de ZIP para entrega: ${id}`);
+    
     const db = await getDb(req);
     const delivery = await db.findById('deliveries', id);
-    if (!delivery) return res.status(404).json({ message: 'Entrega não encontrada' });
+    if (!delivery) {
+      console.error(`[ZIP] Entrega não encontrada: ${id}`);
+      return res.status(404).json({ message: 'Entrega não encontrada' });
+    }
 
     const docs = delivery.documents || {};
     const filesToAdd = [];
     const city = delivery.city || req.city || 'manaus';
+    
+    console.log(`[ZIP] Documentos na entrega:`, Object.keys(docs));
 
+    // Parse e coleta todos os documentos
     Object.entries(docs).forEach(([docType, entry]) => {
-      if (!entry) return;
-      if (Array.isArray(entry)) {
-        entry.forEach((relPath, idx) => filesToAdd.push({ relPath, docType, idx }));
-      } else {
-        filesToAdd.push({ relPath: entry, docType });
+      if (!entry) {
+        console.log(`[ZIP] Tipo "${docType}" vazio, ignorando`);
+        return;
       }
+      
+      // Parse se for string JSON
+      let docArray = entry;
+      if (typeof entry === 'string') {
+        try {
+          docArray = JSON.parse(entry);
+          console.log(`[ZIP] Tipo "${docType}" parseado de JSON`);
+        } catch (e) {
+          console.warn(`[ZIP] Falha ao fazer parse de "${docType}":`, e.message);
+          docArray = [{ path: entry }]; // Trata como caminho plano
+        }
+      }
+      
+      // Garante que é array
+      if (!Array.isArray(docArray)) {
+        docArray = [docArray];
+      }
+      
+      docArray.forEach((doc, idx) => {
+        if (doc) {
+          filesToAdd.push({ doc, docType, idx });
+          console.log(`[ZIP] Documento encontrado: ${docType}[${idx}]`, doc);
+        }
+      });
     });
 
     // Se não houver arquivos, retorna 404
     if (filesToAdd.length === 0) {
+      console.warn(`[ZIP] Nenhum documento encontrado para entrega: ${id}`);
       return res.status(404).json({ message: 'Nenhum documento encontrado para esta entrega' });
     }
+
+    console.log(`[ZIP] Total de documentos a empacotar: ${filesToAdd.length}`);
 
     // Prepara o archiver
     res.attachment(`${delivery.deliveryNumber}_documents.zip`);
     const archive = archiver('zip', { zlib: { level: 9 } });
-    archive.on('error', (err) => { throw err; });
+    archive.on('error', (err) => {
+      console.error(`[ZIP] Erro no archiver:`, err.message);
+      throw err;
+    });
     archive.pipe(res);
+
+    const { google } = require('googleapis');
+    const { getOAuth2Client } = require('../storage/gdrive');
+    let driveClient = null;
 
     // Lista de arquivos faltando
     let missing = [];
+    let addedCount = 0;
 
-    for (const f of filesToAdd) {
-      const candidateCity = path.join(__dirname, '..', 'uploads', city, f.relPath);
-      const candidateRoot = path.join(__dirname, '..', 'uploads', f.relPath);
-      if (fs.existsSync(candidateCity)) {
-        archive.file(candidateCity, { name: path.join(delivery.deliveryNumber, path.basename(candidateCity)) });
-      } else if (fs.existsSync(candidateRoot)) {
-        archive.file(candidateRoot, { name: path.join(delivery.deliveryNumber, path.basename(candidateRoot)) });
-      } else {
-        missing.push(f.relPath);
+    for (const item of filesToAdd) {
+      const { doc, docType, idx } = item;
+      let added = false;
+
+      // Tenta Google Drive primeiro (se tem ID)
+      if (doc.id) {
+        try {
+          console.log(`[ZIP] Tentando adicionar do Google Drive: ${docType}[${idx}] (ID: ${doc.id})`);
+          
+          if (!driveClient) {
+            driveClient = google.drive({ version: 'v3', auth: getOAuth2Client() });
+          }
+          
+          const driveRes = await driveClient.files.get({
+            fileId: doc.id,
+            alt: 'media'
+          }, { responseType: 'stream' });
+          
+          const filename = doc.name || `${docType}_${idx}`;
+          archive.append(driveRes.data, { name: path.join(delivery.deliveryNumber, filename) });
+          addedCount++;
+          added = true;
+          console.log(`[ZIP] ✓ Adicionado do Google Drive: ${filename}`);
+        } catch (err) {
+          console.error(`[ZIP] ✗ Falha do Google Drive para ${docType}[${idx}]:`, err.message);
+          missing.push(`${docType}[${idx}] (Google Drive: ${doc.id})`);
+        }
+      }
+
+      // Tenta arquivo local (se tem path)
+      if (!added && doc.path) {
+        try {
+          console.log(`[ZIP] Tentando adicionar arquivo local: ${docType}[${idx}] (${doc.path})`);
+          
+          const candidateCity = path.join(__dirname, '..', 'uploads', city, doc.path);
+          const candidateRoot = path.join(__dirname, '..', 'uploads', doc.path);
+          let filePath = null;
+
+          if (fs.existsSync(candidateCity)) {
+            filePath = candidateCity;
+          } else if (fs.existsSync(candidateRoot)) {
+            filePath = candidateRoot;
+          }
+
+          if (filePath) {
+            const stat = fs.statSync(filePath);
+            const filename = doc.name || path.basename(filePath);
+            archive.file(filePath, { name: path.join(delivery.deliveryNumber, filename) });
+            addedCount++;
+            added = true;
+            console.log(`[ZIP] ✓ Adicionado arquivo local: ${filename} (${stat.size} bytes)`);
+          } else {
+            console.warn(`[ZIP] Arquivo local não encontrado: ${doc.path}`);
+            missing.push(`${docType}[${idx}] (Local: ${doc.path})`);
+          }
+        } catch (err) {
+          console.error(`[ZIP] ✗ Falha ao adicionar arquivo local ${docType}[${idx}]:`, err.message);
+          missing.push(`${docType}[${idx}] (Erro: ${err.message})`);
+        }
+      }
+
+      if (!added && !doc.id && !doc.path) {
+        console.warn(`[ZIP] Documento sem ID nem path: ${docType}[${idx}]`, doc);
+        missing.push(`${docType}[${idx}] (Sem dados)`);
       }
     }
 
     if (missing.length) {
+      console.log(`[ZIP] Adicionando arquivo de documentos faltando (${missing.length} itens)`);
       archive.append('Arquivos não encontrados:\n' + missing.join('\n'), { name: 'MISSING_FILES.txt' });
     }
 
+    console.log(`[ZIP] Finalizando arquivo (${addedCount} arquivos adicionados)`);
     await archive.finalize();
+    console.log(`[ZIP] ✓ ZIP gerado com sucesso`);
   } catch (err) {
-    console.error('Erro ao gerar ZIP:', err);
-    return res.status(500).json({ message: 'Erro ao gerar ZIP', error: err.message });
+    console.error(`[ZIP] ✗ Erro ao gerar ZIP:`, err && err.message ? err.message : err);
+    console.error(`[ZIP] Stack:`, err && err.stack ? err.stack : 'N/A');
+    if (!res.headersSent) {
+      return res.status(500).json({ message: 'Erro ao gerar ZIP', error: err && err.message ? err.message : err });
+    }
   }
 });
 
