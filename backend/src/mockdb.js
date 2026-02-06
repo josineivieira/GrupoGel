@@ -278,8 +278,8 @@ const instances = {};
 function forCity(city = 'manaus') {
   const name = String(city || 'manaus').toLowerCase();
 
-  // If MONGO_URI is present, use MongoDB adapter (keeps same API surface)
-  if (process.env.MONGO_URI) {
+  // If MONGODB_URI is present, use MongoDB adapter (keeps same API surface)
+  if (process.env.MONGODB_URI) {
     try {
       const mongoAdapter = require('./mongodbAdapter');
       return mongoAdapter.forCity(name);
