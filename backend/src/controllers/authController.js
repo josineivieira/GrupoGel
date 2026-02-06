@@ -12,7 +12,7 @@ const hashPassword = (pwd) => {
 };
 
 // Helper to detect Mongo mode
-const usingMongo = !!process.env.MONGO_URI;
+const usingMongo = !!process.env.MONGODB_URI;
 let DriverModel = null;
 if (usingMongo) {
   try {
@@ -51,7 +51,7 @@ exports.register = async (req, res) => {
 
     const db = req.mockdb;
     // Check if driver already exists
-    const existingDriver = db.findOne('drivers', { 
+    const existingDriver = await db.findOne('drivers', { 
       $or: [{ email }, { username }] 
     });
 
@@ -60,7 +60,7 @@ exports.register = async (req, res) => {
     }
 
     // Create new driver (mockdb)
-    const driver = db.create('drivers', {
+    const driver = await db.create('drivers', {
       username: username.toLowerCase(),
       email: email.toLowerCase(),
       password: hashPassword(password),
@@ -115,8 +115,8 @@ exports.login = async (req, res) => {
       driver = await DriverModel.findOne({ $or: [{ username: loginKey }, { email: loginKey }] }).lean().exec();
     } else {
       const db = req.mockdb;
-      driver = db.findOne('drivers', { username: loginKey });
-      if (!driver) driver = db.findOne('drivers', { email: loginKey });
+      driver = await db.findOne('drivers', { username: loginKey });
+      if (!driver) driver = await db.findOne('drivers', { email: loginKey });
     }
 
     console.log('👤 Driver found:', driver ? driver.username : 'NOT FOUND');
@@ -190,7 +190,7 @@ exports.getMe = async (req, res) => {
     }
 
     const db = req.mockdb;
-    const driver = db.findById('drivers', req.user.id);
+    const driver = await db.findById('drivers', req.user.id);
     if (!driver) {
       return res.status(404).json({ success: false, message: 'Motorista não encontrado' });
     }
@@ -219,7 +219,7 @@ exports.getAllDrivers = async (req, res) => {
     }
 
     const db = req.mockdb;
-    const drivers = db.find('drivers', { role: 'driver' });
+    const drivers = await db.find('drivers', { role: 'driver' });
     res.json({
       success: true,
       drivers: drivers.map(d => ({
@@ -247,7 +247,7 @@ exports.updateDriver = async (req, res) => {
     }
 
     const db = req.mockdb;
-    const driver = db.updateOne('drivers', { _id: req.user.id }, { name, email, phone });
+    const driver = await db.updateOne('drivers', { _id: req.user.id }, { name, email, phone });
 
     if (!driver) {
       return res.status(404).json({ success: false, message: 'Motorista não encontrado' });
@@ -293,7 +293,7 @@ exports.changePassword = async (req, res) => {
     }
 
     const db = req.mockdb;
-    const driver = db.findById('drivers', req.user.id);
+    const driver = await db.findById('drivers', req.user.id);
     if (!driver) {
       return res.status(404).json({ success: false, message: 'Motorista não encontrado' });
     }
@@ -303,7 +303,7 @@ exports.changePassword = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Senha atual incorreta' });
     }
 
-    db.updateOne('drivers', { _id: req.user.id }, { password: hashPassword(newPassword) });
+    await db.updateOne('drivers', { _id: req.user.id }, { password: hashPassword(newPassword) });
 
     res.json({ success: true, message: 'Senha alterada com sucesso' });
   } catch (error) {
