@@ -7,6 +7,15 @@ const fs = require("fs");
 
 dotenv.config({ path: path.join(__dirname, "../../.env") });
 
+// Garante que os arquivos de credenciais do Google Drive sejam gerados a partir
+// das variáveis de ambiente, caso existam. Isso roda mesmo se o comando de
+// start do ambiente não usar o script de setup.
+try {
+  require('../scripts/write-google-creds');
+} catch (e) {
+  console.warn('[CRED] Aviso: falha ao executar write-google-creds:', e && e.message ? e.message : e);
+}
+
 // Initialize mock database
 const mockdb = require('./mockdb');
 
