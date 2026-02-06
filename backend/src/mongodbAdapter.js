@@ -12,9 +12,12 @@ function castId(id) {
   return id;
 }
 
-function wrapCityQuery(query, city) {
+function wrapCityQuery(model, query, city) {
+  // Only apply city scoping to collections that are city-specific (deliveries).
+  // Drivers and other global collections should not be filtered by city.
   if (!city) return query;
-  return { ...query, city };
+  if (model === 'deliveries') return { ...query, city };
+  return query;
 }
 
 function modelFor(name) {
@@ -39,14 +42,14 @@ function createAdapterForCity(city) {
     async find(model, query = {}) {
       await ensureConnected();
       const M = modelFor(model);
-      const q = wrapCityQuery(convertQuery(query), normalizedCity);
+      const q = wrapCityQuery(model, convertQuery(query), normalizedCity);
       const docs = await M.find(q).lean().exec();
       return docs;
     },
     async findOne(model, query = {}) {
       await ensureConnected();
       const M = modelFor(model);
-      const q = wrapCityQuery(convertQuery(query), normalizedCity);
+      const q = wrapCityQuery(model, convertQuery(query), normalizedCity);
       return await M.findOne(q).lean().exec();
     },
     async findById(model, id) {
