@@ -259,13 +259,41 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
         return res.status(500).json({ message: 'Erro ao fazer upload: nenhum arquivo salvo (verifique configuração de Google Drive ou permissão de pasta)' });
       }
 
-      docs[type] = (docs[type] || []).concat(savedDriveFiles);
-      if (Array.isArray(docs[type]) && docs[type].length === 0) docs[type] = null;
+      // Merge existing docs and newly saved files, parsing stored JSON strings if necessary
+      let existing = docs[type];
+      if (existing && typeof existing === 'string') {
+        try {
+          existing = JSON.parse(existing);
+        } catch (e) {
+          // if parsing fails, keep as single entry
+          existing = [existing];
+        }
+      }
+      existing = existing || [];
+      if (!Array.isArray(existing)) existing = [existing];
 
+      // savedDriveFiles contains objects like { name, path } or { id, name, link }
+      const combined = existing.concat(savedDriveFiles || []);
+
+      // Deduplicate by path or name (prefer path if available)
+      const seen = new Set();
+      const deduped = [];
+      for (const item of combined) {
+        const key = (item && (item.path || item.link || item.name || item.id)) || JSON.stringify(item);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push(item);
+      }
+
+      // normalize: store arrays as JSON string, single item as string/object as before
       const normalizedDocs = {};
       for (const [k, v] of Object.entries(docs)) {
+        if (k === type) continue; // we'll set it below
         normalizedDocs[k] = Array.isArray(v) ? JSON.stringify(v) : v;
       }
+
+      normalizedDocs[type] = deduped.length === 0 ? null : JSON.stringify(deduped);
+
       try {
         await db.updateOne("deliveries", { _id: id }, { documents: normalizedDocs });
       } catch (err) {
