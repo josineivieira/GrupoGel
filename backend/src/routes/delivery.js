@@ -197,30 +197,60 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
         const originalExt = path.extname(file.originalname) || ".jpg";
         const finalFilename = `${baseName}_${Date.now()}_${idx}${originalExt}`;
         console.log(`[UPLOAD] Processando arquivo: ${file.originalname}, destino: ${finalFilename}`);
+        
+        let uploadSuccess = false;
+        
+        // Tenta upload ao Google Drive PRIMEIRO
         if (typeof uploadFileToDrive === 'function') {
           try {
-            const driveFile = await uploadFileToDrive(file.buffer || fs.readFileSync(file.path), finalFilename, file.mimetype);
+            console.log(`[UPLOAD] Tentando upload para Google Drive: ${finalFilename}`);
+            const fileBuffer = file.buffer || fs.readFileSync(file.path);
+            console.log(`[UPLOAD] Buffer preparado, tamanho: ${fileBuffer.length} bytes`);
+            const driveFile = await uploadFileToDrive(fileBuffer, finalFilename, file.mimetype);
+            console.log(`[UPLOAD] Resposta do Google Drive:`, driveFile);
             savedDriveFiles.push({ id: driveFile.id, name: finalFilename, link: driveFile.webViewLink || driveFile.webContentLink });
-            console.log(`[UPLOAD] Upload Google Drive OK: ${finalFilename}`);
+            console.log(`[UPLOAD] ✓ Upload Google Drive OK: ${finalFilename} (ID: ${driveFile.id})`);
+            uploadSuccess = true;
           } catch (err) {
-            console.error(`[UPLOAD] Google Drive upload failed for ${file.originalname}:`, err);
+            console.error(`[UPLOAD] ✗ Google Drive upload falhou para ${file.originalname}:`, err && err.message ? err.message : err);
+            console.error(`[UPLOAD] Stack trace:`, err && err.stack ? err.stack : 'N/A');
           }
         } else {
+          console.warn(`[UPLOAD] Google Drive função não disponível, usando fallback local`);
+        }
+        
+        // Se Google Drive falhou ou não está disponível, tenta salvar localmente (fallback)
+        if (!uploadSuccess) {
           try {
+            console.log(`[UPLOAD] Iniciando fallback para armazenamento local`);
             const dest = path.join(containerDir, finalFilename);
+            console.log(`[UPLOAD] Destino local: ${dest}`);
+            
+            let fileBuffer;
             if (file.path && fs.existsSync(file.path)) {
+              console.log(`[UPLOAD] Arquivo temporário existe em: ${file.path}`, 'tamanho:', fs.statSync(file.path).size);
               fs.renameSync(file.path, dest);
+              console.log(`[UPLOAD] Arquivo movido para destino`);
             } else if (file.buffer) {
+              console.log(`[UPLOAD] Usando buffer direto, tamanho:`, file.buffer.length);
               fs.writeFileSync(dest, file.buffer);
+              console.log(`[UPLOAD] Arquivo escrito no disco`);
             } else {
-              console.warn(`[UPLOAD] No file data to save for ${file.originalname}`);
+              console.warn(`[UPLOAD] ✗ Nenhum dado de arquivo disponível para ${file.originalname}`);
               continue;
             }
+            
             savedDriveFiles.push({ name: finalFilename, path: path.join(city, containerFolder, finalFilename) });
-            console.log(`[UPLOAD] Arquivo salvo localmente: ${finalFilename}`);
+            console.log(`[UPLOAD] ✓ Arquivo salvo localmente com sucesso: ${finalFilename}`);
+            uploadSuccess = true;
           } catch (err) {
-            console.error(`[UPLOAD] Local save failed for ${file.originalname}:`, err);
+            console.error(`[UPLOAD] ✗ Falha ao salvar localmente ${file.originalname}:`, err && err.message ? err.message : err);
+            console.error(`[UPLOAD] Stack trace:`, err && err.stack ? err.stack : 'N/A');
           }
+        }
+        
+        if (!uploadSuccess) {
+          console.error(`[UPLOAD] ✗ FALHA TOTAL: arquivo ${file.originalname} não foi salvo em lugar nenhum`);
         }
       }
 
