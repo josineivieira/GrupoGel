@@ -392,43 +392,78 @@ router.delete('/:id/documents/:type/:index', auth, async (req, res) => {
 // POST /api/deliveries/:id/submit
 // =======================
 router.post("/:id/submit", auth, async (req, res) => {
-  const db = req.mockdb;
-  console.log('📩 Submit request to mock route', { id: req.params.id, body: req.body, headers: { 'x-city': req.header('x-city'), host: req.headers.host } });
+  try {
+    const db = await getDb(req);
+    console.log('📩 Submit request', { id: req.params.id, body: req.body, headers: { 'x-city': req.header('x-city'), host: req.headers.host } });
 
-  const delivery = db.findById("deliveries", req.params.id);
-  if (!delivery) return res.status(404).json({ message: "Entrega não encontrada" });
+    const delivery = await db.findById('deliveries', req.params.id);
+    if (!delivery) return res.status(404).json({ message: 'Entrega não encontrada' });
 
-  // Validar documentos obrigatórios por cidade
-  const city = delivery.city || req.city || 'manaus';
-  const requiredDocs = city === 'itajai'
-    ? ['ricAbastecimento', 'diarioBordo', 'ricBaixa', 'ricColeta', 'discoTacografo']
-    : ['canhotNF', 'canhotCTE', 'diarioBordo', 'devolucaoVazio', 'retiradaCheio'];
-
-  const missingDocs = requiredDocs.filter(doc => !delivery.documents || !delivery.documents[doc]);
-
-  const { force, observation } = req.body || {};
-  console.log('  -> missingDocs:', missingDocs, 'force:', force, 'observation:', observation);
-
-  if (missingDocs.length > 0) {
-    if (!force) {
-      return res.status(400).json({ message: 'Documentos obrigatórios faltando: ' + missingDocs.join(', ') });
-    }
-    if (!observation || !String(observation || '').trim()) {
-      return res.status(400).json({ message: 'Observação obrigatória para finalizar com documentos faltando' });
+    // Check ownership: prefer driverId if present, else userId
+    const ownerId = (delivery.driverId && String(delivery.driverId)) || (delivery.userId && String(delivery.userId));
+    if (ownerId && ownerId !== req.user.id) {
+      return res.status(403).json({ message: 'Acesso negado' });
     }
 
-    // Store metadata about forced submit
-    const updates = { status: 'submitted', submittedAt: new Date(), submissionObservation: String(observation).trim(), submissionForce: true, missingDocumentsAtSubmit: missingDocs };
-    await db.updateOne("deliveries", { _id: req.params.id }, updates);
+    // Check if already submitted
+    if (delivery.status === 'submitted') {
+      return res.status(400).json({ success: false, message: 'Entrega já foi enviada' });
+    }
 
-    console.log('  -> Submission forced saved for', req.params.id);
-    const deliveryAfterUpdate = await db.findById('deliveries', req.params.id);
-    return res.json({ message: "Entrega enviada com sucesso (forçada)", delivery: deliveryAfterUpdate });
-  } else {
+    // Helper to determine if a document field has any files
+    const docHasFiles = (val) => {
+      if (!val) return false;
+      if (Array.isArray(val)) return val.length > 0;
+      if (typeof val === 'string') {
+        // may be JSON string of array
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) return parsed.length > 0;
+          return Boolean(parsed);
+        } catch (e) {
+          return Boolean(val && val.trim());
+        }
+      }
+      if (typeof val === 'object') {
+        return Object.keys(val).length > 0;
+      }
+      return Boolean(val);
+    };
+
+    // Determine required docs for city
+    const city = delivery.city || req.city || 'manaus';
+    const requiredDocs = city === 'itajai'
+      ? ['ricAbastecimento', 'diarioBordo', 'ricBaixa', 'ricColeta', 'discoTacografo']
+      : ['canhotNF', 'canhotCTE', 'diarioBordo', 'devolucaoVazio', 'retiradaCheio'];
+
+    const missingDocs = requiredDocs.filter(doc => !docHasFiles(delivery.documents && delivery.documents[doc]));
+
+    const { force, observation } = req.body || {};
+    console.log('  -> missingDocs:', missingDocs, 'force:', force, 'observation:', observation);
+
+    if (missingDocs.length > 0) {
+      if (!force) {
+        return res.status(400).json({ message: 'Documentos obrigatórios faltando: ' + missingDocs.join(', ') });
+      }
+      if (!observation || !String(observation || '').trim()) {
+        return res.status(400).json({ message: 'Observação obrigatória para finalizar com documentos faltando' });
+      }
+
+      // Record that submit was forced
+      const updates = { status: 'submitted', submittedAt: new Date(), submissionObservation: String(observation).trim(), submissionForce: true, missingDocumentsAtSubmit: missingDocs };
+      await db.updateOne('deliveries', { _id: req.params.id }, updates);
+
+      const deliveryAfterUpdate = await db.findById('deliveries', req.params.id);
+      return res.json({ message: 'Entrega enviada com sucesso (forçada)', delivery: deliveryAfterUpdate });
+    }
+
     // No missing docs, mark as submitted
     await db.updateOne('deliveries', { _id: req.params.id }, { status: 'submitted', submittedAt: new Date() });
     const deliveryAfterUpdate = await db.findById('deliveries', req.params.id);
     return res.json({ success: true, message: 'Entrega enviada com sucesso', delivery: deliveryAfterUpdate });
+  } catch (err) {
+    console.error('Erro no submit:', err);
+    return res.status(500).json({ message: 'Erro ao enviar entrega', error: err.message });
   }
 });
 
