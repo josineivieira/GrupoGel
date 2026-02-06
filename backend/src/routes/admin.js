@@ -230,54 +230,110 @@ router.get("/deliveries/:id", auth, onlyAdmin, async (req, res) => {
 router.get("/deliveries/:id/documents/:documentType/download", auth, onlyAdmin, async (req, res) => {
   try {
     const { id, documentType } = req.params;
+    console.log(`[DOWNLOAD] Iniciando download: entrega=${id}, tipo=${documentType}, index=${req.query.index || 0}`);
 
     // Busca entrega
     const db = await getDb(req);
     const delivery = await db.findById("deliveries", id);
     if (!delivery) {
+      console.error(`[DOWNLOAD] Entrega não encontrada: ${id}`);
       return res.status(404).json({ message: "Entrega não encontrada" });
     }
 
     // Verifica se o tipo de documento é conhecido para esta entrega
     const docs = delivery.documents || {};
+    console.log(`[DOWNLOAD] Documentos na entrega:`, Object.keys(docs));
+    
     if (!Object.prototype.hasOwnProperty.call(docs, documentType) || !docs[documentType]) {
+      console.error(`[DOWNLOAD] Tipo de documento não encontrado: ${documentType}`);
       return res.status(404).json({ message: "Documento não encontrado para esta entrega" });
     }
 
-    // Busca documento no Google Drive
+    // Parse documentos para array
     let documentEntry = delivery.documents[documentType];
     let docArray;
     try {
       docArray = typeof documentEntry === 'string' ? JSON.parse(documentEntry) : documentEntry;
     } catch (e) {
+      console.warn(`[DOWNLOAD] Erro ao fazer parse de documento:`, e.message);
       docArray = documentEntry;
     }
     if (!Array.isArray(docArray)) docArray = [docArray];
+    
     const idx = parseInt(req.query.index || '0', 10);
     if (isNaN(idx) || idx < 0 || idx >= docArray.length) {
+      console.error(`[DOWNLOAD] Índice inválido: ${idx}, tamanho do array: ${docArray.length}`);
       return res.status(400).json({ message: 'Índice de documento inválido' });
     }
+    
     const docInfo = docArray[idx];
-    if (!docInfo || !docInfo.id) {
-      return res.status(404).json({ message: 'Documento não encontrado no Google Drive' });
-    }
-    // Baixa do Google Drive
-    const { google } = require('googleapis');
-    const { getOAuth2Client } = require('../storage/gdrive');
-    const drive = google.drive({ version: 'v3', auth: getOAuth2Client() });
-    try {
-      const driveRes = await drive.files.get({
-        fileId: docInfo.id,
-        alt: 'media'
-      }, { responseType: 'stream' });
-      res.setHeader('Content-Disposition', `attachment; filename="${docInfo.name || (delivery.deliveryNumber + '_' + documentType + '.jpg')}"`);
-      driveRes.data.pipe(res);
-    } catch (err) {
-      console.error('Erro ao baixar do Google Drive:', err);
-      return res.status(500).json({ message: 'Erro ao baixar do Google Drive' });
+    console.log(`[DOWNLOAD] Informações do documento [${idx}]:`, JSON.stringify(docInfo));
+
+    // Se tem ID do Google Drive, baixa de lá
+    if (docInfo && docInfo.id) {
+      console.log(`[DOWNLOAD] Documento encontrado no Google Drive: ${docInfo.id}`);
+      try {
+        const { google } = require('googleapis');
+        const { getOAuth2Client } = require('../storage/gdrive');
+        const drive = google.drive({ version: 'v3', auth: getOAuth2Client() });
+        
+        console.log(`[DOWNLOAD] Requisitando arquivo do Google Drive: ${docInfo.id}`);
+        const driveRes = await drive.files.get({
+          fileId: docInfo.id,
+          alt: 'media'
+        }, { responseType: 'stream' });
+        
+        const filename = docInfo.name || (delivery.deliveryNumber + '_' + documentType + '.jpg');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        console.log(`[DOWNLOAD] ✓ Início do stream do Google Drive: ${filename}`);
+        driveRes.data.pipe(res);
+      } catch (err) {
+        console.error(`[DOWNLOAD] ✗ Erro ao baixar do Google Drive:`, err && err.message ? err.message : err);
+        return res.status(500).json({ message: 'Erro ao baixar do Google Drive' });
+      }
+    } 
+    // Se tem caminho local, serve do disco
+    else if (docInfo && docInfo.path) {
+      console.log(`[DOWNLOAD] Documento encontrado localmente: ${docInfo.path}`);
+      try {
+        const filePath = path.join(__dirname, '../uploads', docInfo.path);
+        console.log(`[DOWNLOAD] Caminho resolvido: ${filePath}`);
+        
+        if (!fs.existsSync(filePath)) {
+          console.error(`[DOWNLOAD] Arquivo não existe no disco: ${filePath}`);
+          return res.status(404).json({ message: 'Arquivo não encontrado no servidor' });
+        }
+        
+        const stat = fs.statSync(filePath);
+        const filename = docInfo.name || path.basename(filePath);
+        console.log(`[DOWNLOAD] Arquivo encontrado, tamanho: ${stat.size} bytes`);
+        
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', stat.size);
+        
+        const readStream = fs.createReadStream(filePath);
+        readStream.on('error', (err) => {
+          console.error(`[DOWNLOAD] Erro ao ler arquivo:`, err.message);
+          if (!res.headersSent) {
+            res.status(500).json({ message: 'Erro ao ler arquivo' });
+          }
+        });
+        
+        console.log(`[DOWNLOAD] ✓ Iniciando stream do arquivo local: ${filename}`);
+        readStream.pipe(res);
+      } catch (err) {
+        console.error(`[DOWNLOAD] ✗ Erro ao servir arquivo local:`, err && err.message ? err.message : err);
+        return res.status(500).json({ message: 'Erro ao servir arquivo' });
+      }
+    } 
+    // Documento sem ID nem path
+    else {
+      console.error(`[DOWNLOAD] Documento sem ID ou path:`, docInfo);
+      return res.status(404).json({ message: 'Documento inválido: sem ID ou caminho' });
     }
   } catch (err) {
-    console.error(err);
+    console.error(`[DOWNLOAD] Erro geral:`, err && err.message ? err.message : err);
+    console.error(`[DOWNLOAD] Stack:`, err && err.stack ? err.stack : 'N/A');
     return res.status(500).json({ message: "Erro ao fazer download" });
   }
 });
