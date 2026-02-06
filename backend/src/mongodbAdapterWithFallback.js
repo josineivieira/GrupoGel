@@ -21,6 +21,12 @@ function createAdapterForCity(city) {
   const mongodbAdapter = require('./mongodbAdapter');
   const mongoAdapter = mongodbAdapter.forCity(normalizedCity);
   const mockdbFallback = mockdbFactory.forCity ? mockdbFactory.forCity(normalizedCity) : mockdbFactory;
+  function stripCity(q) {
+    if (!q || typeof q !== 'object') return q;
+    const copy = Array.isArray(q) ? q.map(item => stripCity(item)) : { ...q };
+    if (copy && copy.city) delete copy.city;
+    return copy;
+  }
   
   return {
     async find(model, query = {}) {
@@ -28,7 +34,7 @@ function createAdapterForCity(city) {
         return await mongoAdapter.find(model, query);
       } catch (err) {
         console.warn(`[DB-FALLBACK] MongoDB find falhou, usando MockDB: ${err.message}`);
-        return mockdbFallback.find(model, query);
+        return mockdbFallback.find(model, stripCity(query));
       }
     },
     async findOne(model, query = {}) {
@@ -36,7 +42,7 @@ function createAdapterForCity(city) {
         return await mongoAdapter.findOne(model, query);
       } catch (err) {
         console.warn(`[DB-FALLBACK] MongoDB findOne falhou, usando MockDB: ${err.message}`);
-        return mockdbFallback.findOne(model, query);
+        return mockdbFallback.findOne(model, stripCity(query));
       }
     },
     async findById(model, id) {
@@ -52,7 +58,10 @@ function createAdapterForCity(city) {
         return await mongoAdapter.create(model, data);
       } catch (err) {
         console.warn(`[DB-FALLBACK] MongoDB create falhou, usando MockDB: ${err.message}`);
-        return mockdbFallback.create(model, data);
+        // ensure we don't pass an unexpected city property to per-city mockdb
+        const payload = { ...data };
+        if (payload.city) delete payload.city;
+        return mockdbFallback.create(model, payload);
       }
     },
     async updateOne(model, query, updates) {
@@ -60,7 +69,7 @@ function createAdapterForCity(city) {
         return await mongoAdapter.updateOne(model, query, updates);
       } catch (err) {
         console.warn(`[DB-FALLBACK] MongoDB updateOne falhou, usando MockDB: ${err.message}`);
-        return mockdbFallback.updateOne(model, query, updates);
+        return mockdbFallback.updateOne(model, stripCity(query), updates);
       }
     },
     async deleteOne(model, query) {
@@ -68,7 +77,7 @@ function createAdapterForCity(city) {
         return await mongoAdapter.deleteOne(model, query);
       } catch (err) {
         console.warn(`[DB-FALLBACK] MongoDB deleteOne falhou, usando MockDB: ${err.message}`);
-        return mockdbFallback.deleteOne(model, query);
+        return mockdbFallback.deleteOne(model, stripCity(query));
       }
     }
   };
