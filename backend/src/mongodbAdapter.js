@@ -14,9 +14,15 @@ function castId(id) {
 
 function wrapCityQuery(model, query, city) {
   // Only apply city scoping to collections that are city-specific (deliveries).
-  // Drivers and other global collections should not be filtered by city.
+  // However, if query already filters by userId or driverId, it's already scoped to the owner.
+  // So don't add city filter in that case (city is organizational, not for security).
   if (!city) return query;
-  if (model === 'deliveries') return { ...query, city };
+  if (model === 'deliveries') {
+    // If the query includes userId or driverId, don't add city filter
+    const hasOwnerFilter = query && (query.userId || query.driverId);
+    if (hasOwnerFilter) return query;
+    return { ...query, city };
+  }
   return query;
 }
 
