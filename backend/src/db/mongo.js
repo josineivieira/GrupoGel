@@ -4,8 +4,8 @@ let connected = false;
 
 async function connectIfNeeded() {
   if (connected) return mongoose;
-  const uri = process.env.MONGO_URI;
-  if (!uri) throw new Error('MONGO_URI not provided');
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error('MONGODB_URI not provided');
 
   mongoose.set('strictQuery', false);
 
