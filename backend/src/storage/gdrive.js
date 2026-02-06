@@ -20,11 +20,13 @@ function getOAuth2Client() {
     console.log('[GDRIVE] Carregando credenciais de:', CREDENTIALS_PATH);
     const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
     
-    if (!credentials.installed) {
-      throw new Error('Estrutura de credenciais inválida: missing "installed" property');
+    // Accept both 'installed' (desktop) and 'web' (web app) credential formats
+    const credRoot = credentials.installed || credentials.web;
+    if (!credRoot) {
+      throw new Error('Estrutura de credenciais inválida: missing "installed" or "web" property');
     }
 
-    const { client_secret, client_id, redirect_uris } = credentials.installed;
+    const { client_secret, client_id, redirect_uris } = credRoot;
     
     if (!client_id || !client_secret || !redirect_uris) {
       throw new Error('Credenciais incompletas: faltam client_id, client_secret ou redirect_uris');
