@@ -15,11 +15,12 @@ function createAdapterForCity(city) {
     return mockdb;
   }
 
-  // MongoDB está configurado, tenta usar com fallback em cada operação
-  // MAS nunca use MongoDB se ele estiver muito lento ou instável
-  const USE_MONGODB = true; // Habilitar MongoDB com fallback para MockDB
+  // MongoDB está configurado, decide se deve usar ou não com base em env
+  // Por padrão, se MONGODB_URI presente, habilitamos o uso do MongoDB.
+  // Você pode forçar desabilitar definindo USE_MONGODB=false no ambiente.
+  const USE_MONGODB = process.env.USE_MONGODB ? String(process.env.USE_MONGODB).toLowerCase() === 'true' : true;
   if (!USE_MONGODB) {
-    console.log(`[DB-FALLBACK] MongoDB desabilitado, usando MockDB puro para cidade: ${normalizedCity}`);
+    console.log(`[DB-FALLBACK] MongoDB desabilitado via USE_MONGODB env, usando MockDB puro para cidade: ${normalizedCity}`);
     const mockdb = mockdbFactory.forCity ? mockdbFactory.forCity(normalizedCity) : mockdbFactory;
     return mockdb;
   }
