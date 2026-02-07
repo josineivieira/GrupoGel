@@ -28,10 +28,13 @@ exports.register = async (req, res) => {
     }
 
     // Create new driver
+    // If using MongoDB, let mongoose handle bcrypt hashing by providing plain password.
+    // For MockDB (file-backed), store SHA256 to remain compatible.
+    const passwordToStore = process.env.MONGODB_URI ? password : hashPassword(password);
     const driver = await db.create('drivers', {
       username: username.toLowerCase(),
       email: email.toLowerCase(),
-      password: hashPassword(password),
+      password: passwordToStore,
       name,
       fullName: name,
       phone,
@@ -127,10 +130,29 @@ exports.login = async (req, res) => {
       }
     }
 
+    // Additional attempt: some records were saved as bcrypt(sha256(password)) when
+    // registration used sha256 before mongoose hashing. Try matching hashedSha256 against bcrypt hash.
+    if (!passwordMatch) {
+      try {
+        passwordMatch = await bcrypt.compare(hashedSha256, driver.password || '');
+        if (passwordMatch) {
+          // migrate to bcrypt of plain password
+          try {
+            const bcryptHash = await bcrypt.hash(password, 10);
+            await db.updateOne('drivers', { _id: driver._id }, { password: bcryptHash, legacyPasswordSha256: null });
+          } catch (e) {
+            console.warn('⚠️ Failed to migrate bcrypt(sha256) to bcrypt(plain):', e && e.message ? e.message : e);
+          }
+        }
+      } catch (e) {
+        console.error('Error comparing bcrypt with sha256 value:', e);
+      }
+    }
+
     console.log('🔑 Password check:', { providedSha256: hashedSha256.substring(0,10)+'...', passwordMatch });
     if (!passwordMatch) {
       console.log('❌ Password mismatch');
-      return res.status(401).json({ success: false, message: 'Credenciais inválidas' });
+      return res.status(401).json({ success: false, message: 'Senha incorreta' });
     }
 
     // Check if driver is active
@@ -241,15 +263,101 @@ exports.changePassword = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Motorista não encontrado' });
     }
 
-    const hashedOldPassword = hashPassword(oldPassword);
-    if (hashedOldPassword !== driver.password) {
-      return res.status(401).json({ success: false, message: 'Senha atual incorreta' });
+    // Accept several stored formats: legacy sha256 in `legacyPasswordSha256`,
+    // sha256 stored in `password`, bcrypt(plain) or bcrypt(sha256).
+    const hashedOld = hashPassword(oldPassword);
+    let ok = false;
+    if (driver.legacyPasswordSha256 && driver.legacyPasswordSha256 === hashedOld) ok = true;
+    if (!ok && typeof driver.password === 'string' && /^[0-9a-f]{64}$/i.test(driver.password) && driver.password === hashedOld) ok = true;
+    if (!ok) {
+      try {
+        ok = await bcrypt.compare(oldPassword, driver.password || '');
+        if (!ok) {
+          // also try bcrypt compare against sha256(oldPassword)
+          ok = await bcrypt.compare(hashedOld, driver.password || '');
+        }
+      } catch (e) {
+        console.error('Error comparing passwords in changePassword:', e);
+      }
     }
 
-    await db.updateOne('drivers', { _id: req.user.id }, { password: hashPassword(newPassword) });
+    if (!ok) return res.status(401).json({ success: false, message: 'Senha atual incorreta' });
+
+    // Store new password: plain for Mongo (mongoose will hash), sha256 for MockDB
+    const newToStore = process.env.MONGODB_URI ? newPassword : hashPassword(newPassword);
+    await db.updateOne('drivers', { _id: req.user.id }, { password: newToStore, legacyPasswordSha256: null });
 
     res.json({ success: true, message: 'Senha alterada com sucesso' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro no servidor', error: error.message });
+  }
+};
+
+// Request password reset (generates token and logs/sends it)
+exports.requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email obrigatório' });
+    const db = req.mockdb;
+    const driver = await db.findOne('drivers', { email: String(email).toLowerCase() });
+    // Always respond success to avoid user enumeration
+    if (!driver) return res.json({ success: true, message: 'Se o email existir, você receberá instruções para recuperar a senha' });
+
+    const token = crypto.randomBytes(20).toString('hex');
+    const expires = new Date(Date.now() + 3600 * 1000); // 1h
+
+    await db.updateOne('drivers', { _id: driver._id }, { resetPasswordToken: token, resetPasswordExpires: expires });
+
+    // Send email if SMTP configured - else log token for developer
+    if (process.env.SMTP_HOST) {
+      try {
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST,
+          port: process.env.SMTP_PORT || 587,
+          secure: process.env.SMTP_SECURE === 'true',
+          auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined
+        });
+        const resetUrl = `${process.env.FRONTEND_URL || ''}/reset-password?token=${token}`;
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'no-reply@example.com',
+          to: driver.email,
+          subject: 'Recuperação de senha',
+          text: `Use o token para recuperar a senha: ${token}\nOu clique: ${resetUrl}`
+        });
+      } catch (e) {
+        console.warn('Failed to send reset email:', e && e.message ? e.message : e);
+      }
+    } else {
+      console.log('Password reset token for', driver.email, token);
+    }
+
+    const resp = { success: true, message: 'Se o email existir, você receberá instruções para recuperar a senha' };
+    if (process.env.NODE_ENV !== 'production') resp.token = token;
+    return res.json(resp);
+  } catch (err) {
+    console.error('Error in requestPasswordReset:', err);
+    return res.status(500).json({ success: false, message: 'Erro no servidor' });
+  }
+};
+
+// Reset password using token
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) return res.status(400).json({ success: false, message: 'Token e nova senha obrigatórios' });
+    const db = req.mockdb;
+    const driver = await db.findOne('drivers', { resetPasswordToken: token });
+    if (!driver || !driver.resetPasswordExpires || new Date(driver.resetPasswordExpires) < new Date()) {
+      return res.status(400).json({ success: false, message: 'Token inválido ou expirado' });
+    }
+
+    const newToStore = process.env.MONGODB_URI ? newPassword : hashPassword(newPassword);
+    await db.updateOne('drivers', { _id: driver._id }, { password: newToStore, legacyPasswordSha256: null, resetPasswordToken: null, resetPasswordExpires: null });
+
+    return res.json({ success: true, message: 'Senha redefinida com sucesso' });
+  } catch (err) {
+    console.error('Error in resetPassword:', err);
+    return res.status(500).json({ success: false, message: 'Erro no servidor' });
   }
 };
