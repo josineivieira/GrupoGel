@@ -52,7 +52,8 @@ exports.register = async (req, res) => {
         id: driver._id,
         username: driver.username,
         email: driver.email,
-        fullName: driver.fullName,
+        fullName: driver.fullName || driver.name || '',
+        name: driver.name || driver.fullName || '',
         role: driver.role
       }
     });
@@ -172,7 +173,8 @@ exports.login = async (req, res) => {
         id: driver._id,
         username: driver.username,
         email: driver.email,
-        fullName: driver.fullName,
+        fullName: driver.fullName || driver.name || '',
+        name: driver.name || driver.fullName || '',
         role: driver.role
       }
     });
@@ -197,7 +199,8 @@ exports.getMe = async (req, res) => {
         id: driver._id,
         username: driver.username,
         email: driver.email,
-        fullName: driver.fullName,
+        fullName: driver.fullName || driver.name || '',
+        name: driver.name || driver.fullName || '',
         role: driver.role
       }
     });
@@ -216,7 +219,8 @@ exports.getAllDrivers = async (req, res) => {
       drivers: drivers.map(d => ({
         id: d._id,
         username: d.username,
-        fullName: d.fullName,
+        fullName: d.fullName || d.name || '',
+        name: d.name || d.fullName || '',
         email: d.email,
         role: d.role
       }))
@@ -244,7 +248,8 @@ exports.updateDriver = async (req, res) => {
         id: driver._id,
         username: driver.username,
         email: driver.email,
-        fullName: driver.fullName,
+        fullName: driver.fullName || driver.name || '',
+        name: driver.name || driver.fullName || '',
         role: driver.role
       }
     });

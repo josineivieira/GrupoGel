@@ -255,7 +255,7 @@ const NovaEntrega = () => {
                 </label>
                 <input
                   type="text"
-                  value={user?.name || ''}
+                  value={user?.fullName || user?.name || ''}
                   disabled
                   className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-600"
                 />
