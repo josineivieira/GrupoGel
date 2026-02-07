@@ -13,16 +13,15 @@ function castId(id) {
 }
 
 function wrapCityQuery(model, query, city) {
-  // Only apply city scoping to collections that are city-specific (deliveries).
-  // However, if query already filters by userId or driverId, it's already scoped to the owner.
-  // So don't add city filter in that case (city is organizational, not for security).
-  if (!city) return query;
+  // City scoping was a MockDB concept to organize records per-city.
+  // In MongoDB, we store all deliveries in one collection without city field.
+  // Deliveries are scoped by userId/driverId (ownership), not city.
+  // So we don't apply city filter to deliveries.
   if (model === 'deliveries') {
-    // If the query includes userId or driverId, don't add city filter
-    const hasOwnerFilter = query && (query.userId || query.driverId);
-    if (hasOwnerFilter) return query;
-    return { ...query, city };
+    return query; // no city filter
   }
+  // Other models might use city if needed (e.g., future per-city data)
+  if (!city) return query;
   return query;
 }
 
