@@ -75,7 +75,7 @@ router.post("/", auth, async (req, res) => {
       observations,
       driverName: driverName || "",
       userId: req.user.id,
-      userName: driver?.fullName || "Unknown",
+      userName: driver?.fullName || driver?.name || driver?.username || "Unknown",
       status: "pending",
       documents: {},
       city
