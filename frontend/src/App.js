@@ -3,8 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './services/authContext';
 import PrivateRoute from './components/PrivateRoute';
 import AppLayout from './components/AppLayout';
-import { CityProvider, useCity } from './contexts/CityContext';
-import CitySelector from './components/CitySelector';
+import { CityProvider } from './contexts/CityContext';
 
 // Pages
 import Login from './pages/Login';
@@ -20,7 +19,6 @@ import Profile from './pages/Profile';
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
-  const { city } = useCity();
 
 
   return (

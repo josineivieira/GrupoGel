@@ -13,8 +13,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Label,
-  Cell
+  Label
 } from 'recharts';
 
 const AdminDashboard = () => {

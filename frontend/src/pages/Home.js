@@ -102,7 +102,7 @@ const Home = () => {
         </div>
 
         {/* Admin Dashboard Card - Conditional */}
-        {user?.role === 'admin' && (
+        {user?.role === 'ADMIN' && (
           <div className="mb-12 grid grid-cols-1 md:grid-cols-3 gap-6">
             <button
               onClick={() => navigate('/admin')}

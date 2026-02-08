@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Toast from '../components/Toast';
 import { adminService } from '../services/authService';
-import { FaArrowLeft, FaEdit, FaTrash, FaPlus, FaUser } from 'react-icons/fa';
+import { FaArrowLeft, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
 
 const UserManagement = () => {
   const navigate = useNavigate();
@@ -16,7 +16,7 @@ const UserManagement = () => {
     email: '',
     name: '',
     password: '',
-    role: 'driver'
+    role: 'MOTORISTA'
   });
 
   useEffect(() => {
@@ -76,7 +76,7 @@ const UserManagement = () => {
       email: user.email,
       name: user.name,
       password: '',
-      role: user.role
+      role: (user.role || 'MOTORISTA').toString().toUpperCase()
     });
     setShowForm(true);
   };
@@ -175,8 +175,9 @@ const UserManagement = () => {
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
-                    <option value="driver">Motorista</option>
-                    <option value="admin">Admin</option>
+                    <option value="MOTORISTA">Motorista</option>
+                    <option value="CONTRATADO">Contratado</option>
+                    <option value="ADMIN">Admin</option>
                   </select>
                 </div>
 

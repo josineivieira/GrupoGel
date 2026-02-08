@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/authContext';
-import { useCity } from '../contexts/CityContext';
+// city selection moved to login; no direct use in header
 import { FaSignOutAlt, FaUser, FaBars, FaHome, FaTimes } from 'react-icons/fa';
 
 const Header = () => {
