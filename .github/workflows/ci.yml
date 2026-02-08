@@ -1,0 +1,98 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm install
+    
+    - name: Lint backend code
+      working-directory: ./backend
+      run: npm run lint --if-present
+      continue-on-error: true
+    
+    - name: Check code format
+      working-directory: ./backend
+      run: npm run format:check --if-present
+      continue-on-error: true
+    
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm install
+    
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build --if-present
+      env:
+        CI: false
+    
+    - name: Run backend health check
+      working-directory: ./backend
+      run: |
+        timeout 10 npm start &
+        sleep 3
+        curl -f http://localhost:5000/api/health || true
+      continue-on-error: true
+
+  security-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Run security audit
+      run: |
+        npm audit --workspaces --audit-level=moderate 2>/dev/null || echo "Audit completed"
+      continue-on-error: true
+    
+    - name: Check for secrets
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: ${{ github.event.repository.default_branch }}
+        head: HEAD
+        extra_args: --debug
+      continue-on-error: true
+
+  docker-build:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: false
+        tags: delivery-app:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

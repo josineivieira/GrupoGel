@@ -6,7 +6,12 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node scripts/write-google-creds.js && node src/server.js",
-    "migrate-to-mongo": "node scripts/migrate_to_mongo.js"
+    "migrate-to-mongo": "node scripts/migrate_to_mongo.js",
+    "seed": "node seed.js",
+    "migrate-data": "node migrate-data.js",
+    "lint": "eslint src/",
+    "format": "prettier --write \"src/**/*.js\"",
+    "format:check": "prettier --check \"src/**/*.js\""
   },
   "keywords": [
     "delivery",
@@ -30,6 +35,10 @@
     "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "eslint": "^8.50.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.28.1",
+    "nodemon": "^3.0.1",
+    "prettier": "^3.0.3"
   }
 }

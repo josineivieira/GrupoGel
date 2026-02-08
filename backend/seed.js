@@ -47,19 +47,33 @@ const seedDatabase = async () => {
       password: adminPassword,
       email: 'admin@test.com',
       fullName: 'Administrador',
-      role: 'admin',
+      role: 'ADMIN',
       phoneNumber: '1199999999',
       cnh: '12345678901'
     });
+
+    // Create a sample contractor (company) and set its contractorId to itself
+    const contractor = await Driver.create({
+      username: 'contratado1',
+      password: driverPassword,
+      email: 'contratado1@test.com',
+      fullName: 'Empresa Exemplo',
+      role: 'CONTRATADO',
+      phoneNumber: '11900000000',
+      cnh: ''
+    });
+    // ensure contractor.contractorId points to itself
+    try { await Driver.findByIdAndUpdate(contractor._id, { contractorId: contractor._id }); } catch(e) { console.warn('Failed set contractorId on seed contractor', e); }
 
     const driver1 = await Driver.create({
       username: 'motorista1',
       password: driverPassword,
       email: 'motorista1@test.com',
       fullName: 'João Silva',
-      role: 'driver',
+      role: 'MOTORISTA',
       phoneNumber: '11987654321',
-      cnh: 'ABC1234567'
+      cnh: 'ABC1234567',
+      contractorId: contractor._id
     });
 
     const driver2 = await Driver.create({
@@ -67,9 +81,10 @@ const seedDatabase = async () => {
       password: driverPassword,
       email: 'motorista2@test.com',
       fullName: 'Maria Santos',
-      role: 'driver',
+      role: 'MOTORISTA',
       phoneNumber: '11987654322',
-      cnh: 'DEF1234567'
+      cnh: 'DEF1234567',
+      contractorId: contractor._id
     });
 
     console.log('✓ Usuários criados:');
@@ -84,6 +99,8 @@ const seedDatabase = async () => {
     deliveries.push(await Delivery.create({
       userId: driver1._id,
       userName: driver1.fullName,
+      driverId: driver1._id,
+      contractorId: contractor._id,
       deliveryNumber: 'ENT001',
       vehiclePlate: 'ABC1234',
       status: 'submitted',
@@ -97,6 +114,8 @@ const seedDatabase = async () => {
     deliveries.push(await Delivery.create({
       userId: driver1._id,
       userName: driver1.fullName,
+      driverId: driver1._id,
+      contractorId: contractor._id,
       deliveryNumber: 'ENT002',
       vehiclePlate: 'ABC1234',
       status: 'draft',
@@ -108,6 +127,8 @@ const seedDatabase = async () => {
     deliveries.push(await Delivery.create({
       userId: driver2._id,
       userName: driver2.fullName,
+      driverId: driver2._id,
+      contractorId: contractor._id,
       deliveryNumber: 'ENT003',
       vehiclePlate: 'XYZ9876',
       status: 'submitted',
@@ -120,6 +141,8 @@ const seedDatabase = async () => {
     deliveries.push(await Delivery.create({
       userId: driver2._id,
       userName: driver2.fullName,
+      driverId: driver2._id,
+      contractorId: contractor._id,
       deliveryNumber: 'ENT004',
       vehiclePlate: 'XYZ9876',
       status: 'submitted',

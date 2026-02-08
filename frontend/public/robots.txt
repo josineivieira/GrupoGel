@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /usuarios
+Disallow: /reconciliacao
+
+Sitemap: https://entregasperfeitas.onrender.com/sitemap.xml

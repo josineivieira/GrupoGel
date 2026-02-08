@@ -16,6 +16,8 @@ const hashPassword = (pwd) => {
 exports.register = async (req, res) => {
   try {
     const { name, username, email, password, phone } = req.body;
+    // allow role and contractorId during creation (admin may create different roles)
+    let { role, contractorId } = req.body || {};
     const db = req.mockdb;
 
     // Check if driver already exists
@@ -27,20 +29,66 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Motorista já cadastrado' });
     }
 
+    // Normalize role values and enforce contractor scoping rules
+    const normalizeRole = (r) => {
+      if (!r) return 'MOTORISTA';
+      const up = String(r).toUpperCase();
+      if (up === 'DRIVER') return 'MOTORISTA';
+      if (up === 'MOTORISTA' || up === 'CONTRATADO' || up === 'ADMIN') return up;
+      if (up === 'CONTRACTOR' || up === 'CONTRATOR' || up === 'CONTRATANTE') return 'CONTRATADO';
+      return up;
+    };
+
+    role = normalizeRole(role);
+
+    // Enforce rules:
+    // - ADMIN must not have contractorId
+    // - MOTORISTA must have contractorId and the contractor must exist and be CONTRATADO
+    // - CONTRATADO will have contractorId set to its own id after creation
+    if (role === 'ADMIN' && contractorId) {
+      return res.status(400).json({ success: false, message: 'ADMIN não pode ter contractorId' });
+    }
+
+    if (role === 'MOTORISTA' && !contractorId) {
+      return res.status(400).json({ success: false, message: 'Motorista precisa de contractorId (id do contratado)' });
+    }
+
+    if (role === 'MOTORISTA' && contractorId) {
+      const contractor = await db.findById('drivers', contractorId);
+      if (!contractor || String(contractor.role).toUpperCase() !== 'CONTRATADO') {
+        return res.status(400).json({ success: false, message: 'contractorId inválido ou não pertence a um CONTRATADO' });
+      }
+    }
+
     // Create new driver
     // If using MongoDB, let mongoose handle bcrypt hashing by providing plain password.
     // For MockDB (file-backed), store SHA256 to remain compatible.
     const passwordToStore = process.env.MONGODB_URI ? password : hashPassword(password);
-    const driver = await db.create('drivers', {
+    const createPayload = {
       username: username.toLowerCase(),
       email: email.toLowerCase(),
       password: passwordToStore,
       name,
       fullName: name,
       phone,
-      role: 'driver',
+      role,
       isActive: true
-    });
+    };
+
+    // For MOTORISTA, attach contractorId now
+    if (role === 'MOTORISTA') createPayload.contractorId = contractorId;
+
+    const driver = await db.create('drivers', createPayload);
+
+    // For CONTRATADO, set contractorId to its own id (company id)
+    if (role === 'CONTRATADO') {
+      try {
+        await db.updateOne('drivers', { _id: driver._id }, { contractorId: driver._id });
+        driver.contractorId = driver._id;
+      } catch (e) {
+        console.warn('Falha ao setar contractorId para CONTRATADO:', e && e.message ? e.message : e);
+      }
+    }
 
     const token = generateToken(driver._id, driver.role);
 
@@ -213,7 +261,8 @@ exports.getMe = async (req, res) => {
 exports.getAllDrivers = async (req, res) => {
   try {
     const db = req.mockdb;
-    const drivers = await db.find('drivers', { role: 'driver' });
+    // legacy code used role 'driver' — normalize to new enum 'MOTORISTA'
+    const drivers = await db.find('drivers', { role: 'MOTORISTA' });
     res.json({
       success: true,
       drivers: drivers.map(d => ({

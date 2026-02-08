@@ -119,9 +119,65 @@ app.use("/api/deliveries", require("./routes/delivery"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/admin/reconciliation", require("./routes/reconciliation"));
 
-// Health check
+// Health check endpoint (basic)
 app.get("/api/health", (req, res) => {
-  res.json({ success: true, message: "Server is running" });
+  const uptime = Math.floor(process.uptime());
+  res.json({ 
+    success: true, 
+    message: "Server is running",
+    version: process.env.npm_package_version || "1.0.0",
+    uptime: uptime,
+    timestamp: new Date().toISOString(),
+    dbMode
+  });
+});
+
+// Readiness check (also checks DB connectivity)
+app.get("/api/ready", async (req, res) => {
+  try {
+    let mongoHealthy = false;
+    
+    // Try to verify DB is responsive
+    if (process.env.MONGODB_URI) {
+      // If using MongoDB, verify connection is active
+      try {
+        const mongoose = require('mongoose');
+        if (mongoose.connection.readyState === 1) {
+          mongoHealthy = true;
+        }
+      } catch (e) {
+        // ignore
+      }
+    } else {
+      // MockDB is always "ready" if we're running
+      mongoHealthy = true;
+    }
+
+    if (mongoHealthy) {
+      return res.json({ 
+        success: true, 
+        ready: true,
+        dbMode,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      return res.status(503).json({ 
+        success: false, 
+        ready: false,
+        dbMode,
+        message: 'Database connection not ready',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    res.status(503).json({ 
+      success: false, 
+      ready: false,
+      message: 'Readiness check failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Servir frontend estático (React build)

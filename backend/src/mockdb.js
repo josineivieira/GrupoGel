@@ -68,6 +68,7 @@ class MockDatabase {
 
     // Se não existir, cria dados iniciais
     const adminId = 'admin_' + crypto.randomUUID();
+    const contractorId = 'contractor_' + crypto.randomUUID();
     const driver1Id = 'driver1_' + crypto.randomUUID();
     const driver2Id = 'driver2_' + crypto.randomUUID();
 
@@ -83,10 +84,25 @@ class MockDatabase {
         email: 'admin@test.com',
         name: 'Administrador',
         fullName: 'Administrador',
-        role: 'admin',
+        role: 'ADMIN',
         phoneNumber: '1199999999',
         cnh: '12345678901',
         isActive: true,
+        createdAt: now.toISOString()
+      },
+      // contractor (company)
+      {
+        _id: contractorId,
+        username: 'contratado1',
+        password: hashPassword('contractor123'),
+        email: 'contratado1@test.com',
+        name: 'Empresa Exemplo',
+        fullName: 'Empresa Exemplo',
+        role: 'CONTRATADO',
+        phoneNumber: '11900000000',
+        cnh: '',
+        isActive: true,
+        contractorId: contractorId,
         createdAt: now.toISOString()
       },
       {
@@ -96,9 +112,10 @@ class MockDatabase {
         email: 'motorista1@test.com',
         name: 'João Silva',
         fullName: 'João Silva',
-        role: 'driver',
+        role: 'MOTORISTA',
         phoneNumber: '11987654321',
         cnh: 'ABC1234567',
+        contractorId: contractorId,
         isActive: true,
         createdAt: now.toISOString()
       },
@@ -109,9 +126,10 @@ class MockDatabase {
         email: 'motorista2@test.com',
         name: 'Maria Santos',
         fullName: 'Maria Santos',
-        role: 'driver',
+        role: 'MOTORISTA',
         phoneNumber: '11987654322',
         cnh: 'DEF1234567',
+        contractorId: contractorId,
         isActive: true,
         createdAt: now.toISOString()
       }
@@ -123,6 +141,8 @@ class MockDatabase {
         userId: driver1Id,
         userName: 'João Silva',
         driverName: 'João Silva',
+        driverId: driver1Id,
+        contractorId: contractorId,
         deliveryNumber: 'ENT001',
         vehiclePlate: 'ABC1234',
         status: 'submitted',
@@ -136,6 +156,8 @@ class MockDatabase {
         userId: driver1Id,
         userName: 'João Silva',
         driverName: 'João Silva',
+        driverId: driver1Id,
+        contractorId: contractorId,
         deliveryNumber: 'ENT002',
         vehiclePlate: 'ABC1234',
         status: 'draft',
@@ -148,6 +170,8 @@ class MockDatabase {
         userId: driver2Id,
         userName: 'Maria Santos',
         driverName: 'Maria Santos',
+        driverId: driver2Id,
+        contractorId: contractorId,
         deliveryNumber: 'ENT003',
         vehiclePlate: 'XYZ9876',
         status: 'submitted',
@@ -161,6 +185,8 @@ class MockDatabase {
         userId: driver2Id,
         userName: 'Maria Santos',
         driverName: 'Maria Santos',
+        driverId: driver2Id,
+        contractorId: contractorId,
         deliveryNumber: 'ENT004',
         vehiclePlate: 'XYZ9876',
         status: 'submitted',

@@ -618,7 +618,8 @@ router.get("/users", auth, onlyAdmin, async (req, res) => {
  */
 router.post("/users", auth, onlyAdmin, async (req, res) => {
   try {
-    const { username, email, name, password, role } = req.body;
+    const { username, email, name, password } = req.body;
+    let { role, contractorId } = req.body || {};
 
     if (!username || !email || !name || !password) {
       return res.status(400).json({ message: "Preencha todos os campos" });
@@ -638,6 +639,34 @@ router.post("/users", auth, onlyAdmin, async (req, res) => {
     const crypto = require('crypto');
     const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
 
+    // Normalize role similar to backend rules
+    const normalizeRole = (r) => {
+      if (!r) return 'MOTORISTA';
+      const up = String(r).toUpperCase();
+      if (up === 'DRIVER') return 'MOTORISTA';
+      if (up === 'MOTORISTA' || up === 'CONTRATADO' || up === 'ADMIN') return up;
+      if (up === 'CONTRACTOR' || up === 'CONTRATOR' || up === 'CONTRATANTE') return 'CONTRATADO';
+      return up;
+    };
+
+    role = normalizeRole(role);
+
+    // Enforce simple validation rules for admin-created users
+    if (role === 'ADMIN' && contractorId) {
+      return res.status(400).json({ message: 'ADMIN não pode ter contractorId' });
+    }
+
+    if (role === 'MOTORISTA' && !contractorId) {
+      return res.status(400).json({ message: 'Motorista precisa de contractorId (id do contratado)' });
+    }
+
+    if (role === 'MOTORISTA' && contractorId) {
+      const contractor = await db.findById('drivers', contractorId);
+      if (!contractor || String(contractor.role).toUpperCase() !== 'CONTRATADO') {
+        return res.status(400).json({ message: 'contractorId inválido ou não pertence a um CONTRATADO' });
+      }
+    }
+
     const newUser = {
       _id: 'user_' + crypto.randomUUID(),
       username: normalizedUsername,
@@ -645,7 +674,7 @@ router.post("/users", auth, onlyAdmin, async (req, res) => {
       name,
       fullName: name,
       password: hashedPassword,
-      role: role || 'driver',
+      role: role || 'MOTORISTA',
       phoneNumber: '',
       cnh: '',
       isActive: true,
@@ -654,6 +683,15 @@ router.post("/users", auth, onlyAdmin, async (req, res) => {
 
     // Use API do DB (mockdb or mongo adapter) to insert
     const created = await db.create('drivers', newUser);
+
+    // If created as CONTRATADO, set contractorId to its own id
+    if (String(newUser.role).toUpperCase() === 'CONTRATADO') {
+      try {
+        await db.updateOne('drivers', { _id: created._id }, { contractorId: created._id });
+      } catch (e) {
+        console.warn('Falha ao setar contractorId para CONTRATADO (admin create):', e && e.message ? e.message : e);
+      }
+    }
     console.log('➕ Novo usuário criado (sem senha no log):', { _id: created._id, username: created.username, email: created.email, role: created.role });
 
     return res.json({ 
