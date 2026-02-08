@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0-alpine
+    container_name: delivery-app-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: mongoadmin
+      MONGO_INITDB_DATABASE: delivery-docs
+    healthcheck:
+      test: echo 'db.adminCommand("ping")' | mongosh localhost:27017/test --username admin --password mongoadmin --authenticationDatabase admin
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - delivery-network
+
+  mongodb-express:
+    image: mongo-express:1.0.0
+    container_name: delivery-app-db-admin
+    ports:
+      - "8081:8081"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: mongoadmin
+      ME_CONFIG_MONGODB_URL: mongodb://admin:mongoadmin@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    networks:
+      - delivery-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: delivery-app-api
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://admin:mongoadmin@mongodb:27017/delivery-docs?authSource=admin
+      JWT_SECRET: dev-secret-key-change-in-production
+      PORT: 5000
+    volumes:
+      - ./backend:/app/backend
+      - /app/backend/node_modules
+      - backend_uploads:/app/backend/uploads
+    command: npm run dev
+    networks:
+      - delivery-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: delivery-app-ui
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      REACT_APP_API_URL: http://localhost:5000/api
+      CI: "false"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - /app/node_modules
+    networks:
+      - delivery-network
+
+volumes:
+  mongodb_data:
+  mongodb_config:
+  backend_uploads:
+
+networks:
+  delivery-network:
+    driver: bridge

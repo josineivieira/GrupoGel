@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+uploads/
+data/
+coverage/
+.next/
+*.test.js
+*.spec.js

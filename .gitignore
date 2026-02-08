@@ -1,32 +1,126 @@
+# ============================================
+# Dependencies & Build Artifacts
+# ============================================
+node_modules/
+frontend/build/
+frontend/.next/
+.next/
+dist/
+build/
+
+# ============================================
+# Environment & Secrets (CRITICAL)
+# ============================================
+.env
+.env.local
+.env.*.local
+frontend/.env.local
+backend/.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Google/Third-party credentials (NEVER commit)
 backend/google-credentials.json
 backend/google-token.json
 google-credentials.json
 google-token.json
-node_modules
-# Generated artifacts and temporary files
+*-credentials.json
+*-token.json
+aws-credentials.json
+.aws/
+
+# ============================================
+# Database & File Uploads
+# ============================================
+backend/uploads/
+backend/data/
+backend/src/uploads/
+persistent_uploads/
+*.db
+*.sqlite
+*.sqlite3
+mongo-dump/
+db-backups/
+
+# ============================================
+# Logs & Debug
+# ============================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+server.log
+debug.log
+.DS_Store
+
+# ============================================
+# IDE & Editor Configs (optional to ignore)
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.sublime-project
+.sublime-workspace
+*.iml
+
+# ============================================
+# OS-specific Files
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ============================================
+# Generated/Temporary Files
+# ============================================
 *.zip
+*.rar
+*.x7z
+*.tar.gz
 *.xls
 *.xlsx
 *.csv
 reconciliacao*
 ngrok.exe
 cloudflared-windows-amd64/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+.cache/
+.parcel-cache/
+dist/
 
-# Environment / local configs
-.env
-.env.local
-frontend/.env.local
+# ============================================
+# Docker & Containers
+# ============================================
+.dockerignore
+docker-compose.override.yml
 
-# Build artifacts
-frontend/build/
+# ============================================
+# CI/CD & GitHub
+# ============================================
+.github/token
+.github/*.log
 
-# Backend data & uploads (don't commit large binaries)
-backend/uploads/
-backend/data/
-backend/src/uploads/
+# ============================================
+# Testing
+# ============================================
+coverage/
+.nyc_output/
+*.lcov
+test-results.xml
 
-# Logs
-server.log
+# ============================================
+# Package managers
+# ============================================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+shrinkwrap.yaml
