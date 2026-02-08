@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Toast from '../components/Toast';
 import { useAuth } from '../services/authContext';
-import { deliveryService } from '../services/authService';
 import {
   FaPlus,
   FaHistory,
@@ -10,14 +8,12 @@ import {
   FaCheckCircle,
   FaClock,
   FaFileAlt,
-  FaUsers,
-  FaDatabase
+  FaUsers
 } from 'react-icons/fa';
 
 const Home = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     // Load basic stats if needed

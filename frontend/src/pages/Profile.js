@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Toast from '../components/Toast';
-import { FaSave, FaKey, FaUser } from 'react-icons/fa';
+import { FaSave, FaKey } from 'react-icons/fa';
 import { authService } from '../services/authService';
 
 const Profile = () => {
@@ -27,27 +27,21 @@ const Profile = () => {
 
   const handleSave = async () => {
     try {
-      setLoading(true);
       const resp = await authService.updateProfile({ name: form.name, email: form.email, phone: form.phone });
       setToast({ message: resp.data.message || 'Perfil atualizado', type: 'success' });
     } catch (err) {
       setToast({ message: err.response?.data?.message || 'Erro ao atualizar perfil', type: 'error' });
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleChangePassword = async () => {
     if (pwd.newPassword !== pwd.confirm) return setToast({ message: 'As senhas não conferem', type: 'error' });
     try {
-      setLoading(true);
       const resp = await authService.changePassword({ oldPassword: pwd.oldPassword, newPassword: pwd.newPassword });
       setToast({ message: resp.data.message || 'Senha alterada', type: 'success' });
       setPwd({ oldPassword: '', newPassword: '', confirm: '' });
     } catch (err) {
       setToast({ message: err.response?.data?.message || 'Erro ao alterar senha', type: 'error' });
-    } finally {
-      setLoading(false);
     }
   };
 

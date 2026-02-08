@@ -35,8 +35,10 @@ COPY . .
 # Copy built frontend from stage 1
 COPY --from=frontend-builder /app/frontend/build ./frontend/build
 
-# Use unprivileged user for security
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+# Use unprivileged user for security (create only if missing to avoid UID conflicts)
+# Try to create appuser, but if UID 1000 is taken, use -r flag for system user with any available UID
+RUN useradd -m appuser 2>/dev/null || useradd -m -r appuser || true
+RUN chown -R appuser:appuser /app || true
 USER appuser
 
 # Health check
