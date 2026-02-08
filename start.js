@@ -18,9 +18,14 @@ try {
   
   const frontendDir = path.join(process.cwd(), 'frontend');
   const buildDir = path.join(frontendDir, 'build');
+  const skipFrontendBuild = process.env.SKIP_FRONTEND_BUILD === 'true' || process.env.NODE_ENV === 'production';
   
-  // Skip build if frontend/build already exists (Docker pre-built) and is not empty
-  if (fs.existsSync(buildDir) && fs.readdirSync(buildDir).length > 0) {
+  // Skip build if:
+  // 1. SKIP_FRONTEND_BUILD env var is set (for container production), OR
+  // 2. frontend/build already exists and has files (pre-built by Docker)
+  if (skipFrontendBuild) {
+    console.log('⏭️  Skipping frontend build (production environment)');
+  } else if (fs.existsSync(buildDir) && fs.readdirSync(buildDir).length > 0) {
     console.log('✅ Frontend already built (found pre-built assets)');
   } else if (fs.existsSync(frontendDir)) {
     // Build frontend only if it hasn't been pre-built

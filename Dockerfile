@@ -52,5 +52,7 @@ EXPOSE 5000
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start backend via npm script
+ENV SKIP_FRONTEND_BUILD=true
+ENV NODE_ENV=production
 CMD ["npm", "start"]
 
