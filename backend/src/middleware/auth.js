@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 
-module.exports = function auth(req, res, next) {
+module.exports = async function auth(req, res, next) {
   try {
     const header = req.headers.authorization || "";
     const token = header.startsWith("Bearer ") ? header.slice(7) : null;
@@ -16,9 +16,9 @@ module.exports = function auth(req, res, next) {
     // Normalize role to uppercase and enrich user info from DB (attach contractorId)
     req.user = { id: decoded.id, role: String(decoded.role || '').toUpperCase() };
 
-    try {
-      // req.mockdb is provided by city middleware (applied earlier)
-      if (req.mockdb) {
+    // req.mockdb is provided by city middleware (applied earlier)
+    if (req.mockdb) {
+      try {
         const db = req.mockdb;
         const user = await db.findById('drivers', decoded.id);
         if (user) {
@@ -27,9 +27,9 @@ module.exports = function auth(req, res, next) {
           req.user.username = user.username || user.email || null;
           if (user.role) req.user.role = String(user.role).toUpperCase();
         }
+      } catch (e) {
+        // ignore enrichment failures; keep token data
       }
-    } catch (e) {
-      // ignore enrichment failures; keep token data
     }
 
     next();
