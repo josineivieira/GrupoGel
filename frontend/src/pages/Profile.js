@@ -6,7 +6,6 @@ import { authService } from '../services/authService';
 
 const Profile = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [form, setForm] = useState({ name: '', email: '', phone: '' });
   const [pwd, setPwd] = useState({ oldPassword: '', newPassword: '', confirm: '' });
@@ -19,8 +18,6 @@ const Profile = () => {
         setForm({ name: d.fullName || d.name || '', email: d.email || '', phone: d.phone || '' });
       } catch (err) {
         setToast({ message: 'Erro ao carregar perfil', type: 'error' });
-      } finally {
-        setLoading(false);
       }
     })();
   }, []);
