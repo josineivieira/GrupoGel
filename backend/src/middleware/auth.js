@@ -12,8 +12,24 @@ module.exports = function auth(req, res, next) {
     const secret = process.env.JWT_SECRET || "dev_secret_change_me";
     const decoded = jwt.verify(token, secret);
 
-    // payload esperado: { id, name, email, role }
-    req.user = decoded;
+    // payload esperado: { id, role }
+    // Enrich user info from DB (attach contractorId) so routes podem autorizar por escopo
+    req.user = { id: decoded.id, role: decoded.role };
+
+    try {
+      // req.mockdb is provided by city middleware (applied earlier)
+      if (req.mockdb) {
+        const db = req.mockdb;
+        const user = await db.findById('drivers', decoded.id);
+        if (user) {
+          // attach contractorId when available
+          req.user.contractorId = user.contractorId || user._id || null;
+          req.user.username = user.username || user.email || null;
+        }
+      }
+    } catch (e) {
+      // ignore enrichment failures; keep token data
+    }
 
     next();
   } catch (err) {

@@ -35,8 +35,16 @@ const driverSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['driver', 'admin'],
-    default: 'driver'
+    enum: ['ADMIN', 'CONTRATADO', 'MOTORISTA'],
+    default: 'MOTORISTA'
+  },
+  // For MOTORISTA users, contractorId references their Contratado user (_id)
+  // For CONTRATADO users, contractorId can be set and represents the company id (often same as _id)
+  contractorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Driver',
+    default: null,
+    index: true
   },
   createdAt: {
     type: Date,

@@ -19,6 +19,10 @@ const DeliverySchema = new mongoose.Schema(
     userName: { type: String, default: "" },
     userEmail: { type: String, default: "" },
 
+    // driver and contractor references
+    driverId: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver' },
+    contractorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver', required: true },
+
     deliveryDate: { type: Date, default: Date.now },
 
     // caminhos/urls dos documentos

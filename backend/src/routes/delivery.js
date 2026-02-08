@@ -59,7 +59,7 @@ router.post("/", auth, async (req, res) => {
   try {
     const db = await getDb(req);
     const city = req.city || 'manaus';
-    const { deliveryNumber, vehiclePlate, observations, driverName } = req.body;
+    const { deliveryNumber, vehiclePlate, observations, driverName, driverId: bodyDriverId, contractorId: bodyContractorId } = req.body;
 
     console.log('📦 Recebido no backend:', { deliveryNumber, vehiclePlate, observations, driverName, city });
 
@@ -67,7 +67,28 @@ router.post("/", auth, async (req, res) => {
       return res.status(400).json({ message: "Número da entrega obrigatório" });
     }
 
-    const driver = await db.findById("drivers", req.user.id);
+    // Resolve driverId / contractorId depending on role
+    let driverId = null;
+    let contractorId = null;
+
+    if (req.user.role === 'ADMIN') {
+      // Admin can create deliveries for any driver/contractor if provided
+      driverId = bodyDriverId || null;
+      contractorId = bodyContractorId || null;
+    } else if (req.user.role === 'CONTRATADO') {
+      // Contractor: must provide driverId (driver must belong to same contractor)
+      contractorId = req.user.contractorId || req.user.id;
+      if (!bodyDriverId) return res.status(400).json({ message: 'driverId obrigatório para CONTRATADO' });
+      const driver = await db.findById('drivers', bodyDriverId);
+      if (!driver || String(driver.contractorId) !== String(contractorId)) return res.status(403).json({ message: 'Driver inválido ou não pertence ao seu contratado' });
+      driverId = bodyDriverId;
+    } else {
+      // MOTORISTA: create only for self
+      driverId = req.user.id;
+      contractorId = req.user.contractorId || null;
+    }
+
+    const creator = await db.findById("drivers", req.user.id);
 
     const delivery = await db.create("deliveries", {
       deliveryNumber,
@@ -75,10 +96,12 @@ router.post("/", auth, async (req, res) => {
       observations,
       driverName: driverName || "",
       userId: req.user.id,
-      userName: driver?.fullName || driver?.name || driver?.username || "Unknown",
+      userName: creator?.fullName || creator?.name || creator?.username || "Unknown",
       status: "pending",
       documents: {},
-      city
+      city,
+      driverId,
+      contractorId
     });
 
     res.status(201).json({ delivery });
@@ -94,9 +117,20 @@ router.post("/", auth, async (req, res) => {
 // =======================
 router.get("/", auth, async (req, res) => {
   try {
-    const db = await getDb(req);
-    const { status, q } = req.query;
-    const query = { userId: req.user.id };
+      const db = await getDb(req);
+      const { status, q } = req.query;
+      let query = {};
+
+      // Apply scope based on role
+      if (req.user.role === 'ADMIN') {
+        query = {};
+      } else if (req.user.role === 'CONTRATADO') {
+        const contractorId = req.user.contractorId || req.user.id;
+        query = { contractorId: contractorId };
+      } else {
+        // MOTORISTA
+        query = { driverId: req.user.id };
+      }
     
     if (status && status !== 'all') {
       query.status = status;
@@ -132,8 +166,18 @@ router.get("/:id", auth, async (req, res) => {
   try {
     const db = await getDb(req);
     const delivery = await db.findById("deliveries", req.params.id);
-    if (!delivery) return res.status(404).json({ message: "Entrega não encontrada" });
-    res.json({ delivery: normalizeDeliveryForResponse(delivery) });
+      if (!delivery) return res.status(404).json({ message: "Entrega não encontrada" });
+
+      // Access control: ADMIN unrestricted
+      if (req.user.role === 'CONTRATADO') {
+        const contractorId = req.user.contractorId || req.user.id;
+        if (String(delivery.contractorId) !== String(contractorId)) return res.status(403).json({ message: 'Acesso negado' });
+      }
+      if (req.user.role === 'MOTORISTA') {
+        if (String(delivery.driverId) !== String(req.user.id)) return res.status(403).json({ message: 'Acesso negado' });
+      }
+
+      res.json({ delivery: normalizeDeliveryForResponse(delivery) });
   } catch (err) {
     console.error('Error fetching delivery', err);
     res.status(500).json({ message: 'Erro ao buscar entrega' });
@@ -154,6 +198,15 @@ router.post("/:id/documents/:type", auth, upload.array("file"), async (req, res)
     if (!delivery) {
       console.error(`[UPLOAD] Entrega não encontrada: ${id}`);
       return res.status(404).json({ message: "Entrega não encontrada" });
+    }
+
+    // Authorization: only ADMIN, or CONTRATADO owning contractorId, or MOTORISTA owning driverId
+    if (req.user.role === 'CONTRATADO') {
+      const contractorId = req.user.contractorId || req.user.id;
+      if (String(delivery.contractorId) !== String(contractorId)) return res.status(403).json({ message: 'Acesso negado' });
+    }
+    if (req.user.role === 'MOTORISTA') {
+      if (String(delivery.driverId) !== String(req.user.id)) return res.status(403).json({ message: 'Acesso negado' });
     }
 
     const typeNames = {
@@ -328,6 +381,15 @@ router.delete('/:id/documents/:type/:index', auth, async (req, res) => {
 
     if (!docEntry) return res.status(404).json({ message: 'Documento não encontrado' });
 
+    // Authorization: only ADMIN, CONTRATADO owning contractorId or MOTORISTA owning driverId
+    if (req.user.role === 'CONTRATADO') {
+      const contractorId = req.user.contractorId || req.user.id;
+      if (String(delivery.contractorId) !== String(contractorId)) return res.status(403).json({ message: 'Acesso negado' });
+    }
+    if (req.user.role === 'MOTORISTA') {
+      if (String(delivery.driverId) !== String(req.user.id)) return res.status(403).json({ message: 'Acesso negado' });
+    }
+
     const idx = parseInt(index, 10);
 
     const city = req.city || 'manaus';
@@ -399,10 +461,13 @@ router.post("/:id/submit", auth, async (req, res) => {
     const delivery = await db.findById('deliveries', req.params.id);
     if (!delivery) return res.status(404).json({ message: 'Entrega não encontrada' });
 
-    // Check ownership: prefer driverId if present, else userId
-    const ownerId = (delivery.driverId && String(delivery.driverId)) || (delivery.userId && String(delivery.userId));
-    if (ownerId && ownerId !== req.user.id) {
-      return res.status(403).json({ message: 'Acesso negado' });
+    // Authorization: ADMIN allowed; CONTRATADO only if contractorId matches; MOTORISTA only if driverId matches
+    if (req.user.role === 'CONTRATADO') {
+      const contractorId = req.user.contractorId || req.user.id;
+      if (String(delivery.contractorId) !== String(contractorId)) return res.status(403).json({ message: 'Acesso negado' });
+    }
+    if (req.user.role === 'MOTORISTA') {
+      if (String(delivery.driverId) !== String(req.user.id)) return res.status(403).json({ message: 'Acesso negado' });
     }
 
     // Check if already submitted
