@@ -14,11 +14,16 @@ console.log('╚═════════════════════�
 
 try {
   // ============ BUILD FRONTEND ============
-  console.log('📦 STEP 1: Building Frontend...\n');
+  console.log('📦 STEP 1: Checking Frontend...\n');
   
   const frontendDir = path.join(process.cwd(), 'frontend');
+  const buildDir = path.join(frontendDir, 'build');
   
-  if (fs.existsSync(frontendDir)) {
+  // Skip build if frontend/build already exists (Docker pre-built) and is not empty
+  if (fs.existsSync(buildDir) && fs.readdirSync(buildDir).length > 0) {
+    console.log('✅ Frontend already built (found pre-built assets)');
+  } else if (fs.existsSync(frontendDir)) {
+    // Build frontend only if it hasn't been pre-built
     console.log('📂 Frontend dir:', frontendDir);
     
     console.log('   → npm install...');
@@ -44,7 +49,6 @@ try {
       process.exit(1);
     }
 
-    const buildDir = path.join(frontendDir, 'build');
     if (fs.existsSync(buildDir)) {
       const files = fs.readdirSync(buildDir).length;
       console.log('\n✅ Frontend build SUCCESS! (' + files + ' files)');
